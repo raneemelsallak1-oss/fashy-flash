@@ -477,9 +477,7 @@ export function hasAiImage(asset: GeneratedAsset): boolean {
  * Imported photos are left alone.
  */
 export function needsAiImage(asset: GeneratedAsset): boolean {
-  return (
-    asset.origin === 'generated' && asset.sourceUri !== null && asset.renderStatus !== 'ready'
-  );
+  return asset.origin === 'generated' && asset.sourceUri !== null && asset.renderStatus !== 'ready';
 }
 
 /**

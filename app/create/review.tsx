@@ -86,20 +86,20 @@ export default function ReviewScreen() {
               <View className="flex-1 gap-0.5">
                 <Text className="text-foreground text-[13px]">
                   {isRendering
-                    ? `Rendering on a model — ${Math.min(renderProgress.done + 1, renderProgress.total)} of ${renderProgress.total}`
-                    : `${failedRenders} on-model image${failedRenders === 1 ? '' : 's'} did not arrive`}
+                    ? `Generating images — ${Math.min(renderProgress.done + 1, renderProgress.total)} of ${renderProgress.total}`
+                    : `${failedRenders} image${failedRenders === 1 ? '' : 's'} did not arrive`}
                 </Text>
                 <Text className="text-muted text-[11px] leading-[16px]">
                   {isRendering
-                    ? 'Each photo appears here as soon as it is ready.'
-                    : 'The composite preview is standing in. Try those renders again.'}
+                    ? 'Each image appears here as soon as it is ready.'
+                    : 'A preview is standing in. Try generating those again.'}
                 </Text>
               </View>
 
               {!isRendering ? (
                 <Tappable
                   accessibilityRole="button"
-                  accessibilityLabel="Retry the on-model renders"
+                  accessibilityLabel="Generate the missing images again"
                   onPress={() => void runRenders()}
                   className="border-border bg-ivory h-9 w-9 items-center justify-center rounded-full border"
                 >

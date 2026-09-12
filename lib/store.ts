@@ -253,9 +253,7 @@ async function renderAsset(assetId: string, get: Getter, set: Setter): Promise<b
     patchAsset(get, set, projectId, assetId, {
       renderStatus: 'failed',
       renderError:
-        error instanceof Error
-          ? error.message
-          : 'The image service could not finish this picture.',
+        error instanceof Error ? error.message : 'The image service could not finish this picture.',
     });
     return false;
   }

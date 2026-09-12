@@ -113,7 +113,6 @@ function readProduct(value: unknown, fallback: ProductData): ProductData {
   return {
     name: readString(value.name, fallback.name),
     category: readString(value.category, fallback.category),
-    color: readString(value.color, fallback.color),
     material: readString(value.material, fallback.material),
     fit: readString(value.fit, fallback.fit),
     sizeRange: readString(value.sizeRange, fallback.sizeRange),

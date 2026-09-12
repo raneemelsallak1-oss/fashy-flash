@@ -1,13 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
 import { finalSource, hasAiImage, treatmentLayers } from '@/lib/generation';
-import type {
-  CatalogSelection,
-  GeneratedAsset,
-  ImageLayer,
-  PhotoSlot,
-  Project,
-} from '@/lib/types';
+import type { CatalogSelection, GeneratedAsset, ImageLayer, PhotoSlot, Project } from '@/lib/types';
 
 /** The three garment views a digital catalog is laid out around. */
 export type CatalogView = PhotoSlot;

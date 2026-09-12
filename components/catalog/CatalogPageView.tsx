@@ -121,7 +121,6 @@ type CatalogPageViewProps = {
 export function CatalogPageView({ doc, page, index, total, width }: CatalogPageViewProps) {
   const fs: Scale = (value) => Math.round(((value * width) / 340) * 10) / 10;
   const pad = fs(26);
-  const content = width - pad * 2;
 
   const chrome = { doc, index, total, fs };
 

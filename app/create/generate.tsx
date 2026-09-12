@@ -16,18 +16,22 @@ import {
   describeGarment,
   MODEL_LABEL,
   plannedOutputCount,
-  plannedRenderCount,
   PURPOSE_LABEL,
   SLOT_LABEL,
   STYLE_LABEL,
 } from '@/lib/generation';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
-import { CREDITS_PER_RENDER } from '@/lib/tryon';
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-const STAGE_DURATION = 950;
+const STAGE_DURATION = 850;
+
+/** Stages that run before the request leaves the app. */
+const PREP_STAGES = 4;
+
+/** Share of the progress bar the preparation stages account for. */
+const PREP_SHARE = 0.3;
 
 type Stage = { label: string; detail: string };
 
@@ -36,11 +40,10 @@ function stagesFor(draft: Project): Stage[] {
   const { photos, product, style } = draft;
   const tags = photos.map((photo) => SLOT_LABEL[photo.slot]).join(', ');
   const outputs = plannedOutputCount(style);
-  const renders = plannedRenderCount(style);
 
   return [
     {
-      label: 'Analyzing garment',
+      label: 'Reading your garment photos',
       detail:
         photos.length > 0
           ? `${photos.length} photo${photos.length === 1 ? '' : 's'} · ${tags}`
@@ -51,14 +54,14 @@ function stagesFor(draft: Project): Stage[] {
       detail: describeGarment(product) || product.category.trim() || 'Product data',
     },
     {
-      label: 'Creating model & styling',
-      detail:
-        renders > 0
-          ? `${MODEL_LABEL[style.model]} · ${renders} on-model render${renders === 1 ? '' : 's'}`
-          : `${MODEL_LABEL[style.model]} · ${STYLE_LABEL[style.visualStyle]}`,
+      label: 'Choosing model & styling',
+      detail: `${MODEL_LABEL[style.model]} · ${STYLE_LABEL[style.visualStyle]}`,
     },
-    { label: 'Creating backgrounds', detail: BACKGROUND_LABEL[style.background] },
-    { label: 'Enhancing images', detail: 'Fabric texture, lighting and shadow' },
+    { label: 'Writing the photography brief', detail: BACKGROUND_LABEL[style.background] },
+    {
+      label: 'Generating images',
+      detail: `${outputs} image${outputs === 1 ? '' : 's'} from your garment photos`,
+    },
     {
       label: 'Finalizing assets',
       detail:
@@ -76,9 +79,9 @@ export default function GenerateScreen() {
   const renderProgress = useAppStore((state) => state.renderProgress);
   const { width } = useWindowDimensions();
   const [stage, setStage] = useState(0);
+  const [isGenerating, setIsGenerating] = useState(false);
   const hasStarted = useRef(false);
   const hasLeft = useRef(false);
-  const total = 6;
   const hasDraft = draft !== null;
 
   const openResults = () => {
@@ -87,41 +90,44 @@ export default function GenerateScreen() {
     router.replace('/create/review');
   };
 
-  // Generation starts on its own as soon as this screen opens: the stages run,
-  // the outputs are built from the draft, the model images are photographed by
-  // the try-on service, then the results screen takes over.
+  // Generation starts on its own as soon as this screen opens: the preparation
+  // stages run, the output set is planned from the draft, then the backend
+  // generates a real image for each one and the results screen takes over.
   useEffect(() => {
     if (!hasDraft) return undefined;
 
-    if (stage < total) {
+    if (stage < PREP_STAGES) {
       const timer = setTimeout(() => setStage((value) => value + 1), STAGE_DURATION);
       return () => clearTimeout(timer);
     }
 
     if (hasStarted.current) return undefined;
     hasStarted.current = true;
+    setIsGenerating(true);
     runGeneration();
 
     void runRenders().then(() => {
+      setIsGenerating(false);
       if (hasLeft.current) return;
       hasLeft.current = true;
       router.replace('/create/review');
     });
 
     return undefined;
-  }, [hasDraft, runGeneration, runRenders, stage, total]);
+  }, [hasDraft, runGeneration, runRenders, stage]);
 
   if (!draft) return <NoDraft />;
 
   const stages = stagesFor(draft);
-  const done = Math.min(stage, stages.length);
   const visualSize = Math.min(width - 190, 168);
   const outputs = plannedOutputCount(draft.style);
-  const plannedRenders = plannedRenderCount(draft.style);
 
-  const isRendering = done === stages.length && plannedRenders > 0;
   const renderShare = renderProgress.total > 0 ? renderProgress.done / renderProgress.total : 0;
-  const progress = isRendering ? renderShare : done / stages.length;
+  const prepShare = Math.min(stage, PREP_STAGES) / PREP_STAGES;
+  const done = isGenerating ? PREP_STAGES : Math.min(stage, stages.length);
+  const progress = isGenerating
+    ? PREP_SHARE + (1 - PREP_SHARE) * renderShare
+    : prepShare * PREP_SHARE;
 
   return (
     <View className="bg-ivory flex-1">
@@ -138,7 +144,7 @@ export default function GenerateScreen() {
 
         <View className="gap-2.5">
           <Text className="font-display-medium text-foreground text-center text-[26px] leading-[32px]">
-            {isRendering ? 'Photographing your piece…' : 'Creating your fashion content…'}
+            {isGenerating ? 'Photographing your piece…' : 'Creating your fashion content…'}
           </Text>
           <Text className="text-muted text-center text-[13px]">
             {draft.product.name.trim() || 'Your garment'} · {outputs} outputs from your photos
@@ -149,7 +155,7 @@ export default function GenerateScreen() {
           <ProgressBar value={progress} />
           <View className="flex-row justify-between">
             <Text className="text-muted text-[11px] tracking-[1.6px] uppercase">
-              {isRendering ? 'Rendering' : 'Generating'}
+              {isGenerating ? 'Generating' : 'Preparing'}
             </Text>
             <Text className="text-charcoal-soft text-[11px] tracking-[1.6px] uppercase">
               {Math.round(progress * 100)}%
@@ -157,7 +163,7 @@ export default function GenerateScreen() {
           </View>
         </View>
 
-        {isRendering ? (
+        {isGenerating ? (
           <Animated.View
             entering={FadeIn.duration(240)}
             className="border-border bg-surface gap-3.5 rounded-[22px] border px-4 py-4"
@@ -167,12 +173,12 @@ export default function GenerateScreen() {
               <View className="flex-1 gap-0.5">
                 <Text className="text-foreground text-[14px]">
                   {renderProgress.total > 0
-                    ? `On a model — ${Math.min(renderProgress.done + 1, renderProgress.total)} of ${renderProgress.total}`
+                    ? `Image ${Math.min(renderProgress.done + 1, renderProgress.total)} of ${renderProgress.total}`
                     : 'Uploading your garment photos'}
                 </Text>
                 <Text className="text-muted text-[11px]">
-                  Your garment is being worn by a generated model ·{' '}
-                  {plannedRenders * CREDITS_PER_RENDER} render credits
+                  Each image is generated by the AI service from your own photo — this takes a
+                  moment
                 </Text>
               </View>
             </View>

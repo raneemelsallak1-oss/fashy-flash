@@ -47,7 +47,8 @@ export function AssetImage({
   // and composite nothing over it. A finished AI image is treated the same way —
   // it is a real photograph, not something to paint over.
   if (asset.origin === 'imported' || hasAiImage(asset)) {
-    const source = hasAiImage(asset) && asset.renderUrl ? { uri: asset.renderUrl } : assetSource(asset);
+    const source =
+      hasAiImage(asset) && asset.renderUrl ? { uri: asset.renderUrl } : assetSource(asset);
 
     return (
       <View

@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Spinner, Switch, Text } from 'heroui-native';
@@ -9,7 +8,6 @@ import { PrimaryButton, SecondaryButton } from '@/components/ui/ActionButton';
 import { FooterBar } from '@/components/ui/FooterBar';
 import { SectionLabel } from '@/components/ui/ScreenTitle';
 import { Tappable } from '@/components/ui/Tappable';
-import { hexForColorName } from '@/lib/color';
 import {
   describeLook,
   describeRender,
@@ -21,7 +19,6 @@ import { goBackOrReplace } from '@/lib/navigation';
 import { ASSET_CATEGORY_OPTIONS, BACKGROUND_OPTIONS, IMPORT_VIEW_OPTIONS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
-import { CREDITS_PER_RENDER } from '@/lib/tryon';
 import type { Lighting } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -75,31 +72,22 @@ function ToggleRow({ label, hint, value, onChange }: ToggleRowProps) {
   );
 }
 
-type InfoRow = { label: string; value: string; hex?: string };
+type InfoRow = { label: string; value: string };
 
 export default function AssetPreviewScreen() {
   const { assetId } = useLocalSearchParams<{ assetId: string }>();
   const draft = useAppStore((state) => state.draft);
   const updateAsset = useAppStore((state) => state.updateAsset);
-  const regenerateAsset = useAppStore((state) => state.regenerateAsset);
   const rerenderAsset = useAppStore((state) => state.rerenderAsset);
   const restyleAsset = useAppStore((state) => state.restyleAsset);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
   const removeAsset = useAppStore((state) => state.removeAsset);
   const { width } = useWindowDimensions();
-  const [isRegenerating, setIsRegenerating] = useState(false);
 
   const asset = draft?.assets.find((item) => item.id === assetId);
-  const isOnModel = asset?.origin === 'generated' && asset.worn;
 
-  useEffect(() => {
-    if (!isRegenerating || !asset || isOnModel) return undefined;
-    const timer = setTimeout(() => {
-      regenerateAsset(asset.id);
-      setIsRegenerating(false);
-    }, 1100);
-    return () => clearTimeout(timer);
-  }, [asset, isOnModel, isRegenerating, regenerateAsset]);
+  /** Generated outputs with a garment photo are produced by the image service. */
+  const isAiImage = asset?.origin === 'generated' && asset.sourceUri !== null;
 
   if (!asset) {
     return (
@@ -115,8 +103,7 @@ export default function AssetPreviewScreen() {
   const contentWidth = Math.min(width, 560) - 40;
   const previewWidth = Math.min(contentWidth, 400 * asset.aspect);
   const isImported = asset.origin === 'imported';
-  const isRendering = asset.renderStatus === 'pending';
-  const isBusy = isRendering || isRegenerating;
+  const isGenerating = asset.renderStatus === 'pending';
 
   const infoRows: InfoRow[] = isImported
     ? [
@@ -127,13 +114,8 @@ export default function AssetPreviewScreen() {
     : [
         { label: 'Output', value: `${VARIATION_LABEL[asset.variation]} · Take ${asset.take}` },
         { label: 'Built from', value: describeSource(asset) },
-        ...(asset.worn ? [{ label: 'Rendered', value: describeRender(asset) }] : []),
+        { label: 'Image', value: describeRender(asset) },
         { label: 'Look', value: describeLook(asset) },
-        {
-          label: 'Colorway',
-          value: asset.colorName || 'As photographed',
-          hex: asset.colorName ? asset.colorHex : hexForColorName(''),
-        },
         ...(asset.spec ? [{ label: 'Product', value: asset.spec }] : []),
       ];
 
@@ -181,11 +163,11 @@ export default function AssetPreviewScreen() {
         <View className="items-center">
           <View className="relative">
             <AssetImage asset={asset} width={previewWidth} rounded="rounded-[24px]" />
-            {isBusy ? (
+            {isGenerating ? (
               <View className="bg-ivory/80 absolute inset-0 items-center justify-center gap-3 rounded-[24px]">
                 <Spinner color={palette.blush} />
                 <Text className="text-charcoal-soft text-[12px] tracking-[1.4px] uppercase">
-                  {isRendering ? 'Rendering on a model' : 'Regenerating'}
+                  Generating
                 </Text>
               </View>
             ) : null}
@@ -197,12 +179,6 @@ export default function AssetPreviewScreen() {
             <View key={row.label} className="flex-row items-center justify-between gap-4">
               <Text className="text-muted text-[11px] tracking-[1.4px] uppercase">{row.label}</Text>
               <View className="flex-1 flex-row items-center justify-end gap-2">
-                {row.hex ? (
-                  <View
-                    className="border-sand rounded-full border"
-                    style={{ width: 12, height: 12, backgroundColor: row.hex }}
-                  />
-                ) : null}
                 <Text className="text-charcoal-soft flex-1 text-right text-[12px]">
                   {row.value}
                 </Text>
@@ -244,8 +220,8 @@ export default function AssetPreviewScreen() {
             <View className="border-border bg-surface gap-1 rounded-[18px] border px-4 py-3.5">
               <Text className="text-foreground text-[14px]">Shown exactly as imported</Text>
               <Text className="text-muted text-[12px] leading-[18px]">
-                Colorway, staging and lighting passes are skipped for your own photos, so nothing is
-                painted over the file you brought in.
+                Staging and lighting passes are skipped for your own photos, so nothing is painted
+                over the file you brought in.
               </Text>
             </View>
 
@@ -260,7 +236,7 @@ export default function AssetPreviewScreen() {
             <View className="gap-3">
               <SectionLabel
                 label="Change background"
-                hint={isOnModel ? 'Photographs this image again on the model' : undefined}
+                hint={isAiImage ? 'Generates this image again in the new setting' : undefined}
               />
               <View className="flex-row flex-wrap gap-2">
                 {BACKGROUND_OPTIONS.map((option) => (
@@ -275,7 +251,7 @@ export default function AssetPreviewScreen() {
                         scene: sceneForBackground(asset, background),
                       };
 
-                      if (isOnModel) {
+                      if (isAiImage) {
                         void restyleAsset(asset.id, patch);
                         return;
                       }
@@ -295,7 +271,7 @@ export default function AssetPreviewScreen() {
                     label={option.label}
                     selected={asset.lighting === option.id}
                     onPress={() => {
-                      if (isOnModel) {
+                      if (isAiImage) {
                         void restyleAsset(asset.id, { lighting: option.id });
                         return;
                       }
@@ -306,15 +282,15 @@ export default function AssetPreviewScreen() {
               </View>
             </View>
 
-            {isOnModel ? (
+            {isAiImage ? (
               <View className="border-border bg-surface gap-1 rounded-[18px] border px-4 py-3.5">
                 <Text className="text-foreground text-[14px]">
-                  Photographed on a generated model
+                  Generated by the AI image service
                 </Text>
                 <Text className="text-muted text-[12px] leading-[18px]">
                   {asset.renderError
                     ? asset.renderError
-                    : `Your garment photo is rendered onto a model by the try-on service. Each new render costs ${CREDITS_PER_RENDER} credit.`}
+                    : 'Your garment photo, product details and style choices are sent to the image service, which photographs the piece. Changing a setting generates it again.'}
                 </Text>
               </View>
             ) : (
@@ -334,21 +310,14 @@ export default function AssetPreviewScreen() {
               </View>
             )}
 
-            {isOnModel ? (
+            {isAiImage ? (
               <SecondaryButton
-                label={isRendering ? 'Rendering…' : 'Render again'}
-                isDisabled={isRendering}
+                label={isGenerating ? 'Generating…' : 'Generate again'}
+                isDisabled={isGenerating}
                 onPress={() => void rerenderAsset(asset.id)}
                 icon={<RefreshCw color={palette.charcoal} size={15} />}
               />
-            ) : (
-              <SecondaryButton
-                label={isRegenerating ? 'Regenerating…' : 'Regenerate'}
-                isDisabled={isRegenerating}
-                onPress={() => setIsRegenerating(true)}
-                icon={<RefreshCw color={palette.charcoal} size={15} />}
-              />
-            )}
+            ) : null}
           </>
         )}
       </ScrollView>
@@ -356,7 +325,7 @@ export default function AssetPreviewScreen() {
       <FooterBar>
         <PrimaryButton
           label={asset.isApproved ? 'Approved' : 'Approve'}
-          isDisabled={asset.isApproved || isBusy}
+          isDisabled={asset.isApproved || isGenerating}
           onPress={() => {
             updateAsset(asset.id, { isApproved: true });
             router.back();
