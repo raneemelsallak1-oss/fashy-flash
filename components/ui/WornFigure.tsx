@@ -132,7 +132,7 @@ function Figure({ asset, tone, height }: FigureProps) {
           borderBottomLeftRadius: 12,
           borderBottomRightRadius: 12,
           overflow: 'hidden',
-          backgroundColor: asset.colorHex,
+          backgroundColor: 'rgba(35, 33, 32, 0.06)',
         }}
       >
         <GarmentFill asset={asset} zoom={Math.max(asset.zoom, 1.3)} focusY={0.42} />

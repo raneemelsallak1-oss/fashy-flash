@@ -11,8 +11,6 @@ type CatalogPhotoProps = {
   aspect?: number;
   /** Fills the remaining space of a flex column instead of using an aspect ratio. */
   fill?: boolean;
-  /** Colorway hex laid over the image to simulate a color variation. */
-  tint?: string;
   rounded?: string;
   className?: string;
 };
@@ -23,7 +21,6 @@ export function CatalogPhoto({
   width = '100%',
   aspect,
   fill = false,
-  tint,
   rounded = 'rounded-[6px]',
   className,
 }: CatalogPhotoProps) {
@@ -58,20 +55,6 @@ export function CatalogPhoto({
           }}
         />
       ))}
-      {tint ? (
-        <View
-          pointerEvents="none"
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: tint,
-            opacity: 0.34,
-          }}
-        />
-      ) : null}
     </View>
   );
 }

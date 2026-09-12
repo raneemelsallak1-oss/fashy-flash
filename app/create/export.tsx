@@ -17,7 +17,6 @@ import { Tappable } from '@/components/ui/Tappable';
 import {
   buildCatalogDocument,
   catalogImages,
-  colorwaysForProduct,
   expandSizeRange,
   groupCatalogImages,
 } from '@/lib/catalog';
@@ -34,7 +33,6 @@ export default function ExportScreen() {
   const toggleSelection = useAppStore((state) => state.toggleSelection);
   const toggleExportFormat = useAppStore((state) => state.toggleExportFormat);
   const toggleCatalogImage = useAppStore((state) => state.toggleCatalogImage);
-  const toggleCatalogColorway = useAppStore((state) => state.toggleCatalogColorway);
   const commitProject = useAppStore((state) => state.commitProject);
   const startProject = useAppStore((state) => state.startProject);
   const { width } = useWindowDimensions();
@@ -60,12 +58,10 @@ export default function ExportScreen() {
   const catalogTile = Math.min(94, (contentWidth - 32 - 20) / 3);
 
   const groups = groupCatalogImages(catalogImages(draft));
-  const colorways = colorwaysForProduct(draft.product);
   const sizes = expandSizeRange(draft.product.sizeRange);
   const dataLines = [
     { label: 'Product name', value: draft.product.name.trim() || 'Untitled piece' },
     { label: 'Category', value: draft.product.category.trim() || 'Not set' },
-    { label: 'Color', value: draft.product.color.trim() || 'Not set' },
     { label: 'Material', value: draft.product.material.trim() || 'Not set' },
     {
       label: 'Available sizes',
@@ -201,12 +197,9 @@ export default function ExportScreen() {
               <CatalogBuilder
                 groups={groups}
                 selectedImageIds={draft.catalog.imageIds}
-                colorways={colorways}
-                selectedColorwayIds={draft.catalog.colorwayIds}
                 dataLines={dataLines}
                 tileWidth={catalogTile}
                 onToggleImage={toggleCatalogImage}
-                onToggleColorway={toggleCatalogColorway}
                 onPreview={() => router.push('/create/catalog')}
               />
             </Animated.View>

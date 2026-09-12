@@ -66,7 +66,7 @@ export default function ProjectDetailScreen() {
             {project.name}
           </Text>
           <Text className="text-muted text-[13px]">
-            {[project.product.category, project.product.color, project.product.material]
+            {[project.product.category, project.product.material]
               .filter(Boolean)
               .join(' · ') || 'No product details added'}
           </Text>

@@ -126,7 +126,7 @@ export function CatalogPageView({ doc, page, index, total, width }: CatalogPageV
   const chrome = { doc, index, total, fs };
 
   if (page.kind === 'cover') {
-    const subtitle = [doc.color, doc.material].filter(Boolean).join(' · ');
+    const subtitle = [doc.category, doc.material].filter(Boolean).join(' · ');
 
     return (
       <View
@@ -215,71 +215,10 @@ export function CatalogPageView({ doc, page, index, total, width }: CatalogPageV
             {doc.title}
           </Text>
           <Text className="text-muted" style={{ fontSize: fs(8.5) }}>
-            {[doc.category, doc.color, doc.fit].filter(Boolean).join(' · ')}
+            {[doc.category, doc.material, doc.fit].filter(Boolean).join(' · ')}
           </Text>
         </View>
 
-        <PageFooter {...chrome} />
-      </View>
-    );
-  }
-
-  if (page.kind === 'colorways') {
-    const tile = (content - fs(10)) / 2;
-
-    return (
-      <View
-        className="bg-surface border-border overflow-hidden rounded-[10px] border"
-        style={{ width, height: width / A4_RATIO, padding: pad }}
-      >
-        <PageHeader doc={doc} label={page.label} fs={fs} />
-
-        <View style={{ gap: fs(4), marginTop: fs(12) }}>
-          <Text
-            className="font-display-medium text-foreground"
-            style={{ fontSize: fs(17), lineHeight: fs(21) }}
-          >
-            Available color variations
-          </Text>
-          <Text className="text-muted" style={{ fontSize: fs(8.5) }}>
-            {doc.colorways.map((colorway) => colorway.label).join(' · ')}
-          </Text>
-        </View>
-
-        <View className="flex-row flex-wrap" style={{ gap: fs(10), marginTop: fs(14) }}>
-          {page.colorways.map((colorway) => (
-            <View key={colorway.id} style={{ width: tile, gap: fs(5) }}>
-              {page.hero ? (
-                <CatalogPhoto
-                  image={page.hero}
-                  aspect={3 / 4}
-                  tint={colorway.isBase ? undefined : colorway.hex}
-                  rounded="rounded-[4px]"
-                />
-              ) : (
-                <View
-                  className="rounded-[4px]"
-                  style={{ width: tile, height: (tile * 4) / 3, backgroundColor: colorway.hex }}
-                />
-              )}
-              <View className="flex-row items-center" style={{ gap: fs(5) }}>
-                <View
-                  className="border-border rounded-full border"
-                  style={{ width: fs(9), height: fs(9), backgroundColor: colorway.hex }}
-                />
-                <Text
-                  numberOfLines={1}
-                  className="text-charcoal-soft shrink"
-                  style={{ fontSize: fs(8.5) }}
-                >
-                  {colorway.label}
-                </Text>
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View className="flex-1" />
         <PageFooter {...chrome} />
       </View>
     );
@@ -288,7 +227,6 @@ export function CatalogPageView({ doc, page, index, total, width }: CatalogPageV
   const rows = [
     { label: 'Product name', value: doc.title },
     { label: 'Category', value: doc.category || '—' },
-    { label: 'Color', value: doc.color || '—' },
     { label: 'Material', value: doc.material || '—' },
     { label: 'Fit', value: doc.fit || '—' },
     ...(doc.brand ? [{ label: 'Brand', value: doc.brand }] : []),

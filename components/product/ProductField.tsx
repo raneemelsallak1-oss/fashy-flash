@@ -1,5 +1,5 @@
 import { ScrollView, View } from 'react-native';
-import { Input, Label, TextArea, TextField } from 'heroui-native';
+import { Description, Input, Label, TextArea, TextField } from 'heroui-native';
 
 import { Tappable } from '@/components/ui/Tappable';
 import { cn } from '@/lib/utils';
@@ -11,6 +11,8 @@ type ProductFieldProps = {
   placeholder: string;
   optional?: boolean;
   multiline?: boolean;
+  /** Short helper line under the field. */
+  hint?: string;
   suggestions?: readonly string[];
 };
 
@@ -22,6 +24,7 @@ export function ProductField({
   placeholder,
   optional,
   multiline,
+  hint,
   suggestions,
 }: ProductFieldProps) {
   return (
@@ -46,6 +49,7 @@ export function ProductField({
             className="border-border bg-surface rounded-[16px] border text-[14px]"
           />
         )}
+        {hint ? <Description className="text-muted text-[12px]">{hint}</Description> : null}
       </TextField>
 
       {suggestions && suggestions.length > 0 ? (

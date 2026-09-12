@@ -1,8 +1,6 @@
 import type { ImageSourcePropType } from 'react-native';
 
-import { colorwayLayers, hexForColorName, type ImageLayer } from '@/lib/color';
 import { BACKGROUND_SCENE, imageForKind } from '@/lib/gallery';
-import { newRenderSeed } from '@/lib/tryon';
 import type {
   AssetCategory,
   BackgroundChoice,
@@ -11,6 +9,7 @@ import type {
   GalleryKey,
   GarmentPhoto,
   GeneratedAsset,
+  ImageLayer,
   ModelChoice,
   OutputVariation,
   PhotoSlot,
@@ -343,7 +342,7 @@ function sceneFor(config: VariationConfig, style: StyleSelection): GalleryKey | 
 
 /** Product data snapshot shown under an output. */
 export function describeGarment(product: ProductData): string {
-  return [product.color.trim(), product.material.trim(), product.fit.trim()]
+  return [product.category.trim(), product.material.trim(), product.fit.trim()]
     .filter(Boolean)
     .join(' · ');
 }
@@ -363,20 +362,19 @@ export function describeSource(asset: GeneratedAsset): string {
   if (!asset.sourceUri) return 'No upload available — placeholder imagery';
 
   const base = `${SLOT_LABEL[asset.sourceSlot]} upload`;
-  if (hasOnModelRender(asset)) return `${base}, rendered on a model`;
+  if (hasAiImage(asset)) return `${base}, photographed by the image service`;
   if (!asset.isDerived) return base;
   return `${base}, recropped for the ${VARIATION_LABEL[asset.variation].toLowerCase()}`;
 }
 
 /**
- * Builds the output set for a project. Every output is a treatment of the
- * user's own garment photos, recolored to the product color and staged in the
- * chosen model, style and background.
+ * Plans the output set for a project: one entry per framing the configuration
+ * asks for, each pointing at the garment photo it is generated from. Every
+ * entry starts as a local preview and is replaced by the real AI image once the
+ * backend delivers it.
  */
 export function buildAssets(project: Project): GeneratedAsset[] {
   const { photos, product, style } = project;
-  const colorName = product.color.trim();
-  const colorHex = hexForColorName(colorName);
   const spec = describeGarment(product);
 
   return variationPlan(style).map((config, index) => {
@@ -398,8 +396,6 @@ export function buildAssets(project: Project): GeneratedAsset[] {
       scene: sceneFor(config, style),
       staged: config.staged,
       worn: config.worn,
-      colorName,
-      colorHex,
       spec,
       zoom: config.zoom,
       baseZoom: config.zoom,
@@ -410,10 +406,9 @@ export function buildAssets(project: Project): GeneratedAsset[] {
       enhanced: false,
       shadow: config.staged,
       aspect: config.aspect,
-      renderStatus: config.worn ? 'pending' : 'none',
+      renderStatus: photo ? 'pending' : 'none',
       renderUrl: null,
       renderError: null,
-      renderSeed: newRenderSeed(),
       isFavorite: false,
       isApproved: false,
     };
@@ -422,9 +417,9 @@ export function buildAssets(project: Project): GeneratedAsset[] {
 
 /**
  * Wraps a finished photo the user imported from another tool as a project
- * output. Nothing is composited over it — no colorway tint, staging, backdrop
- * or lighting pass — so it travels through review, export and the catalog
- * exactly as supplied, alongside the generated frames.
+ * output. Nothing is composited over it — no staging, backdrop or lighting
+ * pass — and it is never sent to the image service, so it travels through
+ * review, export and the catalog exactly as supplied.
  */
 export function buildImportedAsset(
   project: Project,
@@ -447,8 +442,6 @@ export function buildImportedAsset(
     scene: null,
     staged: false,
     worn: false,
-    colorName: '',
-    colorHex: hexForColorName(''),
     spec: describeGarment(project.product),
     zoom: 1,
     baseZoom: 1,
@@ -462,7 +455,6 @@ export function buildImportedAsset(
     renderStatus: 'none',
     renderUrl: null,
     renderError: null,
-    renderSeed: 0,
     isFavorite: false,
     isApproved: false,
   };
@@ -474,36 +466,28 @@ export function assetSource(asset: GeneratedAsset): ImageSourcePropType {
   return imageForKind(asset.variation === 'detail' ? 'detail' : 'product');
 }
 
-/** True when the try-on service delivered a real photograph for this output. */
-export function hasOnModelRender(asset: GeneratedAsset): boolean {
+/** True when the image service delivered a real picture for this output. */
+export function hasAiImage(asset: GeneratedAsset): boolean {
   return asset.renderStatus === 'ready' && asset.renderUrl !== null;
 }
 
 /**
- * Outputs presented on a model are photographed by the try-on service. An
- * output still needs that render when it is worn, has a garment photo to work
- * from, and no finished render yet.
+ * Every generated output is photographed by the image service. One still needs
+ * generating when it has a garment photo to work from and no finished image yet.
+ * Imported photos are left alone.
  */
-export function needsOnModelRender(asset: GeneratedAsset): boolean {
+export function needsAiImage(asset: GeneratedAsset): boolean {
   return (
-    asset.origin === 'generated' &&
-    asset.worn &&
-    asset.sourceUri !== null &&
-    asset.renderStatus !== 'ready'
+    asset.origin === 'generated' && asset.sourceUri !== null && asset.renderStatus !== 'ready'
   );
 }
 
-/** How many outputs of a configuration are photographed on a model. */
-export function plannedRenderCount(style: StyleSelection): number {
-  return variationPlan(style).filter((config) => config.worn).length;
-}
-
 /**
- * The image an output finally shows: the on-model photograph when the renderer
- * delivered one, otherwise the garment photo the composite is built from.
+ * The image an output finally shows: the generated picture when the service
+ * delivered one, otherwise the local preview built from the garment photo.
  */
 export function finalSource(asset: GeneratedAsset): ImageSourcePropType {
-  if (hasOnModelRender(asset) && asset.renderUrl) return { uri: asset.renderUrl };
+  if (hasAiImage(asset) && asset.renderUrl) return { uri: asset.renderUrl };
   return assetSource(asset);
 }
 
@@ -511,20 +495,14 @@ export function finalSource(asset: GeneratedAsset): ImageSourcePropType {
 export function describeRender(asset: GeneratedAsset): string {
   switch (asset.renderStatus) {
     case 'ready':
-      return 'Photographed on a model by the try-on service';
+      return 'Generated by the AI image service from your garment photo';
     case 'pending':
-      return 'Rendering on a model…';
+      return 'Generating…';
     case 'failed':
-      return 'Composite preview — the render did not arrive';
+      return 'Preview — the AI image did not arrive';
     default:
-      return 'Composed from your garment photo';
+      return 'Preview built from your garment photo';
   }
-}
-
-/** Recolor layers applied to the garment itself. */
-export function garmentLayers(asset: GeneratedAsset): ImageLayer[] {
-  if (asset.origin === 'imported' || !asset.colorName) return [];
-  return colorwayLayers(asset.colorHex);
 }
 
 /** Lighting and enhancement layers applied over the whole frame. */

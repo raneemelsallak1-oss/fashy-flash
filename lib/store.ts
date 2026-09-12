@@ -6,11 +6,11 @@ import {
   buildAssets,
   buildImportedAsset,
   EMPTY_TREATMENT,
-  needsOnModelRender,
+  needsAiImage,
   nextTake,
 } from '@/lib/generation';
+import { generateImage } from '@/lib/imagegen';
 import { requestRevision } from '@/lib/revision';
-import { newRenderSeed, renderOnModel } from '@/lib/tryon';
 import type {
   AppliedRevision,
   ContentPurpose,
@@ -27,7 +27,6 @@ import { uploadGarmentPhoto } from '@/lib/uploads';
 const EMPTY_PRODUCT: ProductData = {
   name: '',
   category: '',
-  color: '',
   material: '',
   fit: '',
   sizeRange: '',
@@ -46,7 +45,6 @@ const DEFAULT_STYLE: StyleSelection = {
 /** Values the simulated vision pass "reads" from the uploaded garment photos. */
 const AUTO_DETECTED: Partial<ProductData> = {
   category: 'Shirts & Blouses',
-  color: 'Ivory',
   material: 'Linen blend',
   fit: 'Oversized',
   sizeRange: 'XS – XL',
@@ -61,7 +59,7 @@ type Draft = Project;
 /** Whether an AI revision request is in flight. */
 export type RevisionStatus = 'idle' | 'working';
 
-/** Progress of the on-model renders for the current output set. */
+/** Progress of the AI image generation for the current output set. */
 export type RenderProgress = {
   total: number;
   done: number;
@@ -81,7 +79,7 @@ type AppState = {
   revisionError: string | null;
   /** The revision the current outputs were rebuilt from, if any. */
   lastRevision: AppliedRevision | null;
-  /** Shoot-wide on-model rendering progress. */
+  /** Progress of the AI images for the current output set. */
   renderProgress: RenderProgress;
 
   startProject: () => void;
@@ -110,7 +108,6 @@ type AppState = {
   clearSelection: () => void;
   toggleFavorite: (assetId: string) => void;
   updateAsset: (assetId: string, patch: Partial<GeneratedAsset>) => void;
-  regenerateAsset: (assetId: string) => void;
   rerenderAsset: (assetId: string) => Promise<void>;
   restyleAsset: (assetId: string, patch: Partial<GeneratedAsset>) => Promise<void>;
   approveSelected: () => void;
@@ -118,7 +115,6 @@ type AppState = {
   setExportFormats: (formats: ExportFormatId[]) => void;
   toggleExportFormat: (format: ExportFormatId) => void;
   toggleCatalogImage: (imageId: string) => void;
-  toggleCatalogColorway: (colorwayId: string) => void;
   commitProject: () => void;
 };
 
@@ -146,8 +142,8 @@ function mapAssets(
  * Plans the generated outputs for a draft and applies its shoot-wide treatment.
  * Imported photos are carried over untouched, and favorites survive a rebuild
  * because generated asset ids are derived from the project id and plan position.
- * `keepRenders` carries finished on-model photographs over as well, for a
- * rebuild that did not change how anything is presented.
+ * `keepRenders` carries finished AI images over as well, for a rebuild that did
+ * not change how anything is presented.
  */
 function rebuildAssets(draft: Draft, keepRenders = false): GeneratedAsset[] {
   const favorites = new Set(
@@ -171,7 +167,6 @@ function rebuildAssets(draft: Draft, keepRenders = false): GeneratedAsset[] {
             renderStatus: kept.renderStatus,
             renderUrl: kept.renderUrl,
             renderError: null,
-            renderSeed: kept.renderSeed,
             take: kept.take,
           }
         : {}),
@@ -198,10 +193,10 @@ function patchAsset(
 }
 
 /**
- * Renders one output on a real model: the garment photo goes to storage (once
- * per photo), the try-on service photographs it in the look this output was
- * planned in, and the stored image is written back onto the asset. A failure
- * leaves the composite preview in place with a message the user can read.
+ * Generates one output for real: the garment photo goes to storage (once per
+ * photo), the backend composes the prompt from the product data and the selected
+ * model, style and background, and the finished image is written back onto the
+ * asset. A failure leaves the local preview in place with a message to read.
  */
 async function renderAsset(assetId: string, get: Getter, set: Setter): Promise<boolean> {
   const draft = get().draft;
@@ -221,16 +216,16 @@ async function renderAsset(assetId: string, get: Getter, set: Setter): Promise<b
   }
 
   try {
-    const productImage = photo.remoteUrl ?? (await uploadGarmentPhoto(projectId, photo));
+    const garmentImage = photo.remoteUrl ?? (await uploadGarmentPhoto(projectId, photo));
 
-    if (photo.remoteUrl !== productImage) {
+    if (photo.remoteUrl !== garmentImage) {
       const withUrl = get().draft;
       if (withUrl && withUrl.id === projectId) {
         set({
           draft: {
             ...withUrl,
             photos: withUrl.photos.map((item) =>
-              item.id === photo.id ? { ...item, remoteUrl: productImage } : item,
+              item.id === photo.id ? { ...item, remoteUrl: garmentImage } : item,
             ),
           },
         });
@@ -241,11 +236,11 @@ async function renderAsset(assetId: string, get: Getter, set: Setter): Promise<b
     const target = latest?.assets.find((item) => item.id === assetId);
     if (!latest || latest.id !== projectId || !target) return false;
 
-    const imageUrl = await renderOnModel({
+    const imageUrl = await generateImage({
       asset: target,
-      productImage,
+      garmentImage,
       product: latest.product,
-      storeAs: `${projectId}/${assetId}-t${target.take}.jpg`,
+      storeAs: `${projectId}/${assetId}-t${target.take}`,
     });
 
     patchAsset(get, set, projectId, assetId, {
@@ -258,7 +253,9 @@ async function renderAsset(assetId: string, get: Getter, set: Setter): Promise<b
     patchAsset(get, set, projectId, assetId, {
       renderStatus: 'failed',
       renderError:
-        error instanceof Error ? error.message : 'The renderer could not finish this image.',
+        error instanceof Error
+          ? error.message
+          : 'The image service could not finish this picture.',
     });
     return false;
   }
@@ -286,7 +283,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         treatment: { ...EMPTY_TREATMENT },
         assets: [],
         exportFormats: ['ig-post', 'ecommerce'],
-        catalog: { imageIds: [], colorwayIds: ['base'] },
+        catalog: { imageIds: [] },
         revisions: [],
       },
       selection: [],
@@ -391,15 +388,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   /**
-   * Photographs every output that is presented on a model, two at a time so the
-   * first images land quickly without flooding the renderer. Outputs that show
-   * the garment on its own are composed locally and never sent.
+   * Generates every planned output for real, two at a time so the first images
+   * land quickly without flooding the service. Imported photos are left alone.
    */
   runRenders: async () => {
     const draft = get().draft;
     if (!draft) return;
 
-    const queue = draft.assets.filter(needsOnModelRender);
+    const queue = draft.assets.filter(needsAiImage);
     if (queue.length === 0) {
       set({ renderProgress: { ...IDLE_RENDERS } });
       return;
@@ -410,9 +406,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       draft: {
         ...draft,
         assets: draft.assets.map((asset) =>
-          needsOnModelRender(asset)
-            ? { ...asset, renderStatus: 'pending', renderError: null }
-            : asset,
+          needsAiImage(asset) ? { ...asset, renderStatus: 'pending', renderError: null } : asset,
         ),
       },
       renderProgress: { total: queue.length, done: 0, failed: 0, active: true },
@@ -496,7 +490,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         lastRevision: revision,
       });
 
-      // The revised look has to be photographed again on the model.
+      // The revised look has to be generated again.
       void get().runRenders();
     } catch (error) {
       set({
@@ -568,26 +562,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ draft: mapAssets(draft, assetId, (asset) => ({ ...asset, ...patch })) });
   },
 
-  regenerateAsset: (assetId) => {
-    const draft = get().draft;
-    if (!draft) return;
-    set({
-      draft: mapAssets(draft, assetId, (asset) => ({
-        ...asset,
-        ...nextTake(asset),
-      })),
-    });
-  },
-
   /**
-   * Asks the renderer for another photograph of the same look: a new seed and a
-   * fresh take, so the model, pose and framing differ while the garment, colour
-   * and staging stay as configured.
+   * Asks the service for another picture of the same look: a fresh take, so the
+   * pose and framing differ while the garment, product data and staging stay as
+   * configured.
    */
   rerenderAsset: async (assetId) => {
     const draft = get().draft;
     const asset = draft?.assets.find((item) => item.id === assetId);
-    if (!draft || !asset || !asset.worn) return;
+    if (!draft || !asset || asset.origin !== 'generated' || !asset.sourceUri) return;
 
     set({
       draft: mapAssets(draft, assetId, (item) => ({
@@ -596,7 +579,6 @@ export const useAppStore = create<AppState>((set, get) => ({
         renderStatus: 'pending',
         renderUrl: null,
         renderError: null,
-        renderSeed: newRenderSeed(),
       })),
     });
 
@@ -604,21 +586,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   /**
-   * Changes how one output is presented and, when it is shown on a model, has
-   * the renderer photograph it again in the new look.
+   * Changes how one output is presented and has the service generate it again in
+   * the new look. Imported photos keep whatever the user supplied.
    */
   restyleAsset: async (assetId, patch) => {
     const draft = get().draft;
     const asset = draft?.assets.find((item) => item.id === assetId);
     if (!draft || !asset) return;
 
-    const worn = asset.worn && asset.origin === 'generated';
+    const regenerates = asset.origin === 'generated' && asset.sourceUri !== null;
 
     set({
       draft: mapAssets(draft, assetId, (item) => ({
         ...item,
         ...patch,
-        ...(worn
+        ...(regenerates
           ? {
               renderStatus: 'pending' as const,
               renderUrl: null,
@@ -629,7 +611,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       })),
     });
 
-    if (!worn) return;
+    if (!regenerates) return;
     await renderAsset(assetId, get, set);
   },
 
@@ -678,23 +660,6 @@ export const useAppStore = create<AppState>((set, get) => ({
           imageIds: active
             ? draft.catalog.imageIds.filter((item) => item !== imageId)
             : [...draft.catalog.imageIds, imageId],
-        },
-      },
-    });
-  },
-
-  toggleCatalogColorway: (colorwayId) => {
-    const draft = get().draft;
-    if (!draft) return;
-    const active = draft.catalog.colorwayIds.includes(colorwayId);
-    set({
-      draft: {
-        ...draft,
-        catalog: {
-          ...draft.catalog,
-          colorwayIds: active
-            ? draft.catalog.colorwayIds.filter((item) => item !== colorwayId)
-            : [...draft.catalog.colorwayIds, colorwayId],
         },
       },
     });

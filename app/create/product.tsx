@@ -26,7 +26,10 @@ export default function ProductScreen() {
   if (!draft) return <NoDraft />;
 
   const product = draft.product;
-  const canContinue = product.name.trim().length > 0;
+  const canContinue =
+    product.name.trim().length > 0 &&
+    product.category.trim().length > 0 &&
+    product.description.trim().length > 0;
 
   return (
     <View className="bg-ivory flex-1">
@@ -45,7 +48,7 @@ export default function ProductScreen() {
           <ScreenTitle
             eyebrow="Step two"
             title="Tell us about your product"
-            support="A few essentials are enough. You can refine anything later."
+            support="These details are written into the photography brief, so be specific."
           />
 
           <AutoDetectCard isDone={autoDetected} onDetect={autoDetectProduct} />
@@ -65,10 +68,12 @@ export default function ProductScreen() {
               suggestions={CATEGORY_SUGGESTIONS}
             />
             <ProductField
-              label="Color"
-              value={product.color}
-              onChangeText={(value) => updateProduct({ color: value })}
-              placeholder="Ivory"
+              label="Details"
+              value={product.description}
+              onChangeText={(value) => updateProduct({ description: value })}
+              placeholder="Oversized ivory linen shirt, relaxed drop shoulder, mother-of-pearl buttons, breathable weave."
+              hint="A short description of the piece — colour, cut and finish."
+              multiline
             />
             <ProductField
               label="Material"
@@ -124,14 +129,6 @@ export default function ProductScreen() {
                 onChangeText={(value) => updateProduct({ sku: value })}
                 placeholder="SM-LN-001"
                 optional
-              />
-              <ProductField
-                label="Product Description"
-                value={product.description}
-                onChangeText={(value) => updateProduct({ description: value })}
-                placeholder="Relaxed drop shoulder, mother-of-pearl buttons, breathable weave."
-                optional
-                multiline
               />
             </View>
           ) : null}

@@ -5,7 +5,7 @@ import { FILL, GarmentFill, Layers, percent } from '@/components/ui/GarmentFill'
 import { LinearGradient } from '@/components/ui/primitives/LinearGradient';
 import { WornFigure } from '@/components/ui/WornFigure';
 import { imageForKind } from '@/lib/gallery';
-import { assetSource, backdropColors, hasOnModelRender, treatmentLayers } from '@/lib/generation';
+import { assetSource, backdropColors, hasAiImage, treatmentLayers } from '@/lib/generation';
 import type { GeneratedAsset } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -28,9 +28,10 @@ const SCENE_FILL = {
 } as const;
 
 /**
- * Renders one generated output: the user's own garment photo, recolored to the
- * chosen product color, cropped for its variation and staged in the selected
- * style and background — on the selected model when the output is a worn frame.
+ * Renders one output. Once the backend delivers the AI image, that picture fills
+ * the frame as it is. Until then — and if generation fails — a local preview
+ * stands in: the user's own garment photo, cropped for its variation and staged
+ * in the selected style and background.
  */
 export function AssetImage({
   asset,
@@ -43,11 +44,10 @@ export function AssetImage({
   const scene = asset.scene ? imageForKind(asset.scene) : null;
 
   // An imported photo is already finished: fill the frame with the file itself
-  // and composite nothing over it. A finished on-model render is treated the
-  // same way — it is a real photograph, not something to paint over.
-  if (asset.origin === 'imported' || hasOnModelRender(asset)) {
-    const source =
-      hasOnModelRender(asset) && asset.renderUrl ? { uri: asset.renderUrl } : assetSource(asset);
+  // and composite nothing over it. A finished AI image is treated the same way —
+  // it is a real photograph, not something to paint over.
+  if (asset.origin === 'imported' || hasAiImage(asset)) {
+    const source = hasAiImage(asset) && asset.renderUrl ? { uri: asset.renderUrl } : assetSource(asset);
 
     return (
       <View

@@ -1,12 +1,11 @@
 import type { ImageSourcePropType } from 'react-native';
 
-import { hexForColorName, hexForColorwayId, type ImageLayer } from '@/lib/color';
-import { finalSource, garmentLayers, hasOnModelRender, treatmentLayers } from '@/lib/generation';
+import { finalSource, hasAiImage, treatmentLayers } from '@/lib/generation';
 import type {
   CatalogSelection,
   GeneratedAsset,
+  ImageLayer,
   PhotoSlot,
-  ProductData,
   Project,
 } from '@/lib/types';
 
@@ -71,8 +70,8 @@ export function catalogImages(project: Project): CatalogImage[] {
     origin: asset.origin === 'imported' ? 'photo' : 'generated',
     source: finalSource(asset),
     aspect: asset.aspect,
-    // A real on-model photograph is printed as it is; nothing is painted over it.
-    overlays: hasOnModelRender(asset) ? [] : [...garmentLayers(asset), ...treatmentLayers(asset)],
+    // A finished AI image is printed as it is; nothing is painted over it.
+    overlays: hasAiImage(asset) ? [] : treatmentLayers(asset),
   }));
 
   const uploads: CatalogImage[] = project.photos.map((photo, index) => ({
@@ -102,44 +101,6 @@ export function groupCatalogImages(images: CatalogImage[]): CatalogGroup[] {
     ...view,
     images: images.filter((image) => image.view === view.id),
   }));
-}
-
-export type Colorway = {
-  id: string;
-  label: string;
-  hex: string;
-  /** True for the colorway the garment was photographed in. */
-  isBase: boolean;
-};
-
-const CURATED_COLORWAYS: Colorway[] = [
-  { id: 'ivory', label: 'Ivory', hex: hexForColorwayId('ivory'), isBase: false },
-  { id: 'sand', label: 'Sand', hex: hexForColorwayId('sand'), isBase: false },
-  { id: 'rose', label: 'Dusty Rose', hex: hexForColorwayId('rose'), isBase: false },
-  { id: 'sage', label: 'Sage', hex: hexForColorwayId('sage'), isBase: false },
-  { id: 'navy', label: 'Navy', hex: hexForColorwayId('navy'), isBase: false },
-  { id: 'charcoal', label: 'Charcoal', hex: hexForColorwayId('charcoal'), isBase: false },
-  { id: 'black', label: 'Black', hex: hexForColorwayId('black'), isBase: false },
-];
-
-/**
- * Colorways offered for a product: the photographed color first, then the
- * curated seasonal range the same garment can be published in.
- */
-export function colorwaysForProduct(product: ProductData): Colorway[] {
-  const name = product.color.trim();
-  const base: Colorway = {
-    id: 'base',
-    label: name || 'As photographed',
-    hex: hexForColorName(name),
-    isBase: true,
-  };
-
-  const curated = CURATED_COLORWAYS.filter(
-    (colorway) => colorway.label.toLowerCase() !== name.toLowerCase(),
-  );
-
-  return [base, ...curated];
 }
 
 const ALPHA_SIZES = ['XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL'];
@@ -199,20 +160,12 @@ export function expandSizeRange(range: string): string[] {
 export type CatalogPage =
   | { id: string; kind: 'cover'; label: string; hero: CatalogImage | null }
   | { id: string; kind: 'views'; label: string; images: CatalogImage[] }
-  | {
-      id: string;
-      kind: 'colorways';
-      label: string;
-      hero: CatalogImage | null;
-      colorways: Colorway[];
-    }
   | { id: string; kind: 'spec'; label: string };
 
 export type CatalogDocument = {
   title: string;
   brand: string;
   category: string;
-  color: string;
   material: string;
   fit: string;
   sku: string;
@@ -220,7 +173,6 @@ export type CatalogDocument = {
   sizeRange: string;
   sizes: string[];
   issue: string;
-  colorways: Colorway[];
   pages: CatalogPage[];
   imageCount: number;
 };
@@ -237,7 +189,7 @@ function issueLabel(createdAt: number): string {
   return new Date(createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
 
-/** Sensible first selection: one front, one back, up to two details, base color. */
+/** Sensible first selection: one front, one back, up to two details. */
 export function defaultCatalogSelection(project: Project): CatalogSelection {
   const images = catalogImages(project);
   const pick = (view: CatalogView, count: number) =>
@@ -248,11 +200,10 @@ export function defaultCatalogSelection(project: Project): CatalogSelection {
 
   return {
     imageIds: [...pick('front', 1), ...pick('back', 1), ...pick('detail', 2)],
-    colorwayIds: ['base'],
   };
 }
 
-/** Lays the selected images, colorways and product data out into catalog pages. */
+/** Lays the selected images and product data out into catalog pages. */
 export function buildCatalogDocument(project: Project): CatalogDocument {
   const available = catalogImages(project);
   const selected = available.filter((image) => project.catalog.imageIds.includes(image.id));
@@ -262,10 +213,6 @@ export function buildCatalogDocument(project: Project): CatalogDocument {
   const back = byView('back');
   const detail = byView('detail');
   const hero = front[0] ?? selected[0] ?? null;
-
-  const colorways = colorwaysForProduct(project.product).filter((colorway) =>
-    project.catalog.colorwayIds.includes(colorway.id),
-  );
 
   const pages: CatalogPage[] = [{ id: 'cover', kind: 'cover', label: 'Cover', hero }];
 
@@ -284,25 +231,12 @@ export function buildCatalogDocument(project: Project): CatalogDocument {
     });
   });
 
-  if (colorways.length > 0) {
-    chunk(colorways, 4).forEach((group, index) => {
-      pages.push({
-        id: `colorways-${index}`,
-        kind: 'colorways',
-        label: 'Colorways',
-        hero,
-        colorways: group,
-      });
-    });
-  }
-
   pages.push({ id: 'spec', kind: 'spec', label: 'Product specification' });
 
   return {
     title: project.product.name.trim() || 'Untitled piece',
     brand: project.product.brand.trim(),
     category: project.product.category.trim(),
-    color: project.product.color.trim(),
     material: project.product.material.trim(),
     fit: project.product.fit.trim(),
     sku: project.product.sku.trim(),
@@ -310,7 +244,6 @@ export function buildCatalogDocument(project: Project): CatalogDocument {
     sizeRange: project.product.sizeRange.trim(),
     sizes: expandSizeRange(project.product.sizeRange),
     issue: issueLabel(project.createdAt),
-    colorways,
     pages,
     imageCount: selected.length,
   };

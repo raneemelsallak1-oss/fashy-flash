@@ -97,7 +97,7 @@ export const EXPORT_FORMATS: {
     id: 'catalog-pdf',
     label: 'Digital Catalog PDF',
     spec: 'Multi-page A4 PDF',
-    hint: 'Front, back, detail and colorways with product data',
+    hint: 'Front, back and detail pages with product data',
   },
 ];
 

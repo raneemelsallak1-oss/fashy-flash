@@ -39,7 +39,6 @@ function overlays(image: CatalogImage): string {
 
 type FigureOptions = {
   className?: string;
-  tint?: string;
   caption?: string;
 };
 
@@ -51,15 +50,12 @@ function figure(image: CatalogImage | null, options: FigureOptions = {}): string
     return `<figure class="${className}"><div class="frame-empty">No image selected</div></figure>`;
   }
 
-  const tint = options.tint
-    ? `<span class="layer" style="background:${options.tint};opacity:0.34"></span>`
-    : '';
   const caption = options.caption ? `<figcaption>${escapeHtml(options.caption)}</figcaption>` : '';
 
   return `<figure class="${className}">
       <div class="frame-media">
         <img src="${uri}" alt="${escapeHtml(image.label)}" />
-        ${overlays(image)}${tint}
+        ${overlays(image)}
       </div>
       ${caption}
     </figure>`;
@@ -82,7 +78,7 @@ function renderPage(doc: CatalogDocument, page: CatalogPage, index: number, tota
   const { header, footer } = pageChrome(doc, page.label, index, total);
 
   if (page.kind === 'cover') {
-    const subtitle = [doc.color, doc.material].filter(Boolean).join(' &middot; ');
+    const subtitle = [doc.category, doc.material].filter(Boolean).join(' &middot; ');
 
     return `<section class="page cover">
         <header class="page-header">
@@ -113,43 +109,9 @@ function renderPage(doc: CatalogDocument, page: CatalogPage, index: number, tota
         <div class="page-caption">
           <h2>${escapeHtml(doc.title)}</h2>
           <p class="muted small">${escapeHtml(
-            [doc.category, doc.color, doc.fit].filter(Boolean).join(' · '),
+            [doc.category, doc.material, doc.fit].filter(Boolean).join(' · '),
           )}</p>
         </div>
-        ${footer}
-      </section>`;
-  }
-
-  if (page.kind === 'colorways') {
-    const tiles = page.colorways
-      .map((colorway) => {
-        const media = page.hero
-          ? figure(page.hero, {
-              className: 'frame-portrait',
-              tint: colorway.isBase ? undefined : colorway.hex,
-            })
-          : `<figure class="frame frame-portrait"><div class="frame-media" style="background:${colorway.hex}"></div></figure>`;
-
-        return `<div class="colorway">
-            ${media}
-            <div class="colorway-label">
-              <span class="swatch" style="background:${colorway.hex}"></span>
-              <span>${escapeHtml(colorway.label)}</span>
-            </div>
-          </div>`;
-      })
-      .join('');
-
-    return `<section class="page">
-        ${header}
-        <div class="page-intro">
-          <h2>Available color variations</h2>
-          <p class="muted small">${escapeHtml(
-            doc.colorways.map((colorway) => colorway.label).join(' · '),
-          )}</p>
-        </div>
-        <div class="colorways">${tiles}</div>
-        <div class="spacer"></div>
         ${footer}
       </section>`;
   }
@@ -157,7 +119,6 @@ function renderPage(doc: CatalogDocument, page: CatalogPage, index: number, tota
   const rows = [
     { label: 'Product name', value: doc.title },
     { label: 'Category', value: doc.category || '—' },
-    { label: 'Color', value: doc.color || '—' },
     { label: 'Material', value: doc.material || '—' },
     { label: 'Fit', value: doc.fit || '—' },
     ...(doc.brand ? [{ label: 'Brand', value: doc.brand }] : []),
@@ -263,10 +224,6 @@ const STYLES = `
   .views .frame { flex: 1; }
   .page-caption { display: flex; flex-direction: column; gap: 1mm; }
   .page-intro { display: flex; flex-direction: column; gap: 1.5mm; margin-top: 6mm; }
-  .colorways { display: flex; flex-wrap: wrap; gap: 6mm; margin-top: 7mm; }
-  .colorway { width: calc((100% - 6mm) / 2); display: flex; flex-direction: column; gap: 2mm; }
-  .colorway-label { display: flex; align-items: center; gap: 2mm; font-size: 8.5pt; color: #615C58; }
-  .swatch { width: 3.5mm; height: 3.5mm; border-radius: 50%; border: 0.3mm solid #E4DACE; display: inline-block; }
   .specs { margin-top: 6mm; }
   .spec-row {
     display: flex; align-items: center; justify-content: space-between; gap: 8mm;

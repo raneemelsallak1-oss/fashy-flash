@@ -13,13 +13,21 @@ export type GarmentPhoto = {
 export type ProductData = {
   name: string;
   category: string;
-  color: string;
   material: string;
   fit: string;
   sizeRange: string;
   brand: string;
   sku: string;
+  /** Short product description the generation prompt is written from. */
   description: string;
+};
+
+/** A translucent layer painted over an image. `blend` maps to CSS mix-blend-mode. */
+export type ImageLayer = {
+  id: string;
+  color: string;
+  opacity: number;
+  blend?: 'multiply' | 'color' | 'soft-light' | 'screen';
 };
 
 export type ModelChoice = 'female' | 'male' | 'diverse' | 'none';
@@ -87,11 +95,11 @@ export type AppliedRevision = {
 export type AssetOrigin = 'generated' | 'imported';
 
 /**
- * State of the real on-model render for an output.
- * - `none`: this output is not rendered on a model (garment-only, or imported).
- * - `pending`: submitted to the renderer, waiting for the photograph.
- * - `ready`: the render is stored and shown as the output.
- * - `failed`: the renderer could not deliver it; the composite preview stands in.
+ * State of the AI image for an output.
+ * - `none`: nothing is generated for this output (an imported photo).
+ * - `pending`: sent to the image service, waiting for the picture.
+ * - `ready`: the generated image is stored and shown as the output.
+ * - `failed`: the service could not deliver it; the preview composite stands in.
  */
 export type RenderStatus = 'none' | 'pending' | 'ready' | 'failed';
 
@@ -146,9 +154,7 @@ export type GeneratedAsset = {
   staged: boolean;
   /** True when the garment is presented on the selected model. */
   worn: boolean;
-  colorName: string;
-  colorHex: string;
-  /** Product data snapshot, e.g. "Pink · Cotton · Relaxed". */
+  /** Product data snapshot, e.g. "Cotton · Relaxed". */
   spec: string;
   /** Crop scale over the source photo, 1 = full frame. */
   zoom: number;
@@ -166,12 +172,10 @@ export type GeneratedAsset = {
   /** width / height */
   aspect: number;
   renderStatus: RenderStatus;
-  /** Stored URL of the photograph the renderer produced. */
+  /** Stored URL of the image the AI service produced. */
   renderUrl: string | null;
-  /** Why the render did not arrive, ready to show the user. */
+  /** Why the image did not arrive, ready to show the user. */
   renderError: string | null;
-  /** Seed sent to the renderer; a new one asks for a different photograph. */
-  renderSeed: number;
   isFavorite: boolean;
   isApproved: boolean;
 };
@@ -188,8 +192,6 @@ export type ExportFormatId =
 export type CatalogSelection = {
   /** CatalogImage ids: generated assets and uploaded garment photos. */
   imageIds: string[];
-  /** Colorway ids from lib/catalog.ts. */
-  colorwayIds: string[];
 };
 
 export type Project = {

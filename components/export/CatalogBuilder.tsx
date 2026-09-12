@@ -1,74 +1,35 @@
 import { View } from 'react-native';
 import { Text } from 'heroui-native';
-import { Check, Eye } from 'lucide-react-native';
+import { Eye } from 'lucide-react-native';
 
 import { CatalogPhoto } from '@/components/catalog/CatalogPhoto';
 import { SecondaryButton } from '@/components/ui/ActionButton';
 import { CheckBadge } from '@/components/ui/SelectionCard';
 import { Tappable } from '@/components/ui/Tappable';
-import type { CatalogGroup, Colorway } from '@/lib/catalog';
+import type { CatalogGroup } from '@/lib/catalog';
 import { palette } from '@/lib/theme';
 import { cn } from '@/lib/utils';
-
-type ColorwayChipProps = {
-  colorway: Colorway;
-  selected: boolean;
-  onPress: () => void;
-};
-
-function ColorwayChip({ colorway, selected, onPress }: ColorwayChipProps) {
-  return (
-    <Tappable
-      accessibilityRole="checkbox"
-      accessibilityLabel={`${colorway.label} colorway`}
-      accessibilityState={{ checked: selected }}
-      onPress={onPress}
-      scaleTo={0.96}
-      className={cn(
-        'bg-surface flex-row items-center gap-2 rounded-full border py-2 pr-3.5 pl-2',
-        selected ? 'border-blush' : 'border-border',
-      )}
-    >
-      <View
-        className="border-border h-6 w-6 items-center justify-center rounded-full border"
-        style={{ backgroundColor: colorway.hex }}
-      >
-        {selected ? <Check color={palette.white} size={12} strokeWidth={3} /> : null}
-      </View>
-      <Text className={cn('text-[13px]', selected ? 'text-foreground' : 'text-charcoal-soft')}>
-        {colorway.label}
-      </Text>
-      {colorway.isBase ? <Text className="text-muted text-[10px]">photographed</Text> : null}
-    </Tappable>
-  );
-}
 
 type CatalogBuilderProps = {
   groups: CatalogGroup[];
   selectedImageIds: string[];
-  colorways: Colorway[];
-  selectedColorwayIds: string[];
   /** Product fields printed on the specification page. */
   dataLines: { label: string; value: string }[];
   tileWidth: number;
   onToggleImage: (imageId: string) => void;
-  onToggleColorway: (colorwayId: string) => void;
   onPreview: () => void;
 };
 
 /**
  * Content picker shown once Digital Catalog PDF is selected: which garment
- * views and color variations go into the catalog, plus the preview entry point.
+ * views go into the catalog, plus the preview entry point.
  */
 export function CatalogBuilder({
   groups,
   selectedImageIds,
-  colorways,
-  selectedColorwayIds,
   dataLines,
   tileWidth,
   onToggleImage,
-  onToggleColorway,
   onPreview,
 }: CatalogBuilderProps) {
   const imageCount = selectedImageIds.length;
@@ -78,8 +39,7 @@ export function CatalogBuilder({
       <View className="gap-1">
         <Text className="text-blush text-[10px] tracking-[2px] uppercase">Catalog contents</Text>
         <Text className="text-charcoal-soft text-[13px] leading-[19px]">
-          Choose the garment views and color variations to include. Product data is added
-          automatically.
+          Choose the garment views to include. Product data is added automatically.
         </Text>
       </View>
 
@@ -139,25 +99,6 @@ export function CatalogBuilder({
           )}
         </View>
       ))}
-
-      <View className="gap-2.5">
-        <View className="flex-row items-end justify-between">
-          <Text className="text-foreground text-[11px] tracking-[1.6px] uppercase">
-            Color variations
-          </Text>
-          <Text className="text-muted text-[11px]">{selectedColorwayIds.length} included</Text>
-        </View>
-        <View className="flex-row flex-wrap gap-2">
-          {colorways.map((colorway) => (
-            <ColorwayChip
-              key={colorway.id}
-              colorway={colorway}
-              selected={selectedColorwayIds.includes(colorway.id)}
-              onPress={() => onToggleColorway(colorway.id)}
-            />
-          ))}
-        </View>
-      </View>
 
       <View className="border-border/70 bg-surface/80 gap-2 rounded-[16px] border px-3.5 py-3">
         <Text className="text-foreground text-[11px] tracking-[1.6px] uppercase">

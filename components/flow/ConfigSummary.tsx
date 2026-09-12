@@ -2,7 +2,6 @@ import { View } from 'react-native';
 import { Image } from 'expo-image';
 import { Text } from 'heroui-native';
 
-import { hexForColorName } from '@/lib/color';
 import { expandSizeRange } from '@/lib/catalog';
 import {
   BACKGROUND_LABEL,
@@ -14,16 +13,7 @@ import {
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
-function Swatch({ hex }: { hex: string }) {
-  return (
-    <View
-      className="border-sand rounded-full border"
-      style={{ width: 12, height: 12, backgroundColor: hex }}
-    />
-  );
-}
-
-type Row = { label: string; value: string; hex?: string };
+type Row = { label: string; value: string };
 
 function summaryRows(project: Project): Row[] {
   const { product, style } = project;
@@ -32,11 +22,7 @@ function summaryRows(project: Project): Row[] {
   return [
     { label: 'Product', value: product.name.trim() || 'Untitled piece' },
     { label: 'Category', value: product.category.trim() || 'Not set' },
-    {
-      label: 'Color',
-      value: product.color.trim() || 'As photographed',
-      hex: hexForColorName(product.color),
-    },
+    { label: 'Details', value: product.description.trim() || 'Not set' },
     { label: 'Material', value: product.material.trim() || 'Not set' },
     { label: 'Fit', value: product.fit.trim() || 'Not set' },
     {
@@ -94,7 +80,6 @@ export function ConfigSummary({ project, className }: { project: Project; classN
           >
             <Text className="text-muted text-[11px] tracking-[1.4px] uppercase">{row.label}</Text>
             <View className="flex-1 flex-row items-center justify-end gap-2">
-              {row.hex ? <Swatch hex={row.hex} /> : null}
               <Text className="text-foreground flex-1 text-right text-[13px]" numberOfLines={2}>
                 {row.value}
               </Text>
@@ -126,7 +111,6 @@ export function ConfigSummary({ project, className }: { project: Project; classN
 export function ConfigChips({ project, className }: { project: Project; className?: string }) {
   const { product, style } = project;
   const chips = [
-    product.color.trim(),
     product.material.trim(),
     product.fit.trim(),
     MODEL_LABEL[style.model],
@@ -137,7 +121,6 @@ export function ConfigChips({ project, className }: { project: Project; classNam
   return (
     <View className={cn('bg-ivory-deep gap-2.5 rounded-[18px] px-3.5 py-3', className)}>
       <View className="flex-row items-center gap-2">
-        <Swatch hex={hexForColorName(product.color)} />
         <Text className="text-charcoal-soft flex-1 text-[12px]" numberOfLines={1}>
           {product.name.trim() || 'Untitled piece'}
           {product.category.trim() ? ` · ${product.category.trim()}` : ''}

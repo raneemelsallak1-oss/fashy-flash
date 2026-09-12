@@ -1,8 +1,8 @@
 import { View, type DimensionValue, type ViewStyle } from 'react-native';
 import { Image } from 'expo-image';
 
-import type { ImageLayer } from '@/lib/color';
-import { assetSource, garmentLayers } from '@/lib/generation';
+import type { ImageLayer } from '@/lib/types';
+import { assetSource } from '@/lib/generation';
 import type { GeneratedAsset } from '@/lib/types';
 
 export const FILL = {
@@ -17,7 +17,7 @@ export function percent(value: number): DimensionValue {
   return `${value * 100}%`;
 }
 
-/** Translucent color passes painted over an image, e.g. colorway or lighting. */
+/** Translucent color passes painted over an image, e.g. lighting or enhancement. */
 export function Layers({ layers }: { layers: ImageLayer[] }) {
   return layers.map((layer) => (
     <View
@@ -43,8 +43,8 @@ type GarmentFillProps = {
 };
 
 /**
- * The user's uploaded garment photo, cropped for its frame and recolored to the
- * selected product color. Every generated output is built from this surface.
+ * The user's uploaded garment photo, cropped for its frame. Local previews are
+ * built from this surface while the real AI image is on its way.
  */
 export function GarmentFill({ asset, zoom, focusY, style }: GarmentFillProps) {
   const crop = zoom ?? asset.zoom;
@@ -65,7 +65,6 @@ export function GarmentFill({ asset, zoom, focusY, style }: GarmentFillProps) {
         contentFit="cover"
         transition={260}
       />
-      <Layers layers={garmentLayers(asset)} />
     </View>
   );
 }
