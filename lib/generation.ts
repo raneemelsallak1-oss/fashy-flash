@@ -6,6 +6,7 @@ import type {
   AssetCategory,
   BackgroundChoice,
   ContentPurpose,
+  Framing,
   GalleryKey,
   GarmentPhoto,
   GeneratedAsset,
@@ -15,6 +16,7 @@ import type {
   ProductData,
   Project,
   StyleSelection,
+  TreatmentOverrides,
   VisualStyle,
 } from '@/lib/types';
 
@@ -498,6 +500,48 @@ export function sceneForBackground(
 
 const TAKE_FOCUS = [0.5, 0.36, 0.62];
 const TAKE_ZOOM = [1, 1.14, 1.06];
+
+/** How much tighter or wider a revision framing request crops the source. */
+const FRAMING_SCALE: Record<Framing, number> = { wider: 0.88, tighter: 1.14, same: 1 };
+
+export const EMPTY_TREATMENT: TreatmentOverrides = {
+  lighting: null,
+  enhanced: null,
+  shadow: null,
+  framing: null,
+};
+
+/**
+ * Applies a shoot-wide treatment from an AI revision over freshly planned
+ * outputs. Only the properties the revision actually set are overridden, so
+ * every variation keeps the staging generation planned for it. Imported photos
+ * are never touched.
+ */
+export function applyTreatment(
+  assets: GeneratedAsset[],
+  treatment: TreatmentOverrides,
+): GeneratedAsset[] {
+  const scale = treatment.framing ? FRAMING_SCALE[treatment.framing] : 1;
+  const untouched =
+    treatment.lighting === null &&
+    treatment.enhanced === null &&
+    treatment.shadow === null &&
+    scale === 1;
+  if (untouched) return assets;
+
+  return assets.map((asset) => {
+    if (asset.origin === 'imported') return asset;
+
+    return {
+      ...asset,
+      lighting: treatment.lighting ?? asset.lighting,
+      enhanced: treatment.enhanced ?? asset.enhanced,
+      shadow: treatment.shadow ?? asset.shadow,
+      baseZoom: asset.baseZoom * scale,
+      zoom: asset.zoom * scale,
+    };
+  });
+}
 
 /**
  * Restages the same garment for another take: the source photo, color, product

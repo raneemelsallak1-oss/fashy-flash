@@ -40,6 +40,43 @@ export type StyleSelection = {
 
 export type AssetCategory = 'ecommerce' | 'social' | 'catalog';
 export type Lighting = 'soft' | 'balanced' | 'bright';
+export type Framing = 'wider' | 'tighter' | 'same';
+
+/**
+ * Shoot-wide image treatment. Null means "leave each variation on the value
+ * generation planned for it" — a revision only fills in what it asked to change.
+ */
+export type TreatmentOverrides = {
+  lighting: Lighting | null;
+  enhanced: boolean | null;
+  shadow: boolean | null;
+  framing: Framing | null;
+};
+
+/** One property a revision changed, ready to show as "Label: from → to". */
+export type RevisionChange = {
+  field: string;
+  label: string;
+  from: string;
+  to: string;
+};
+
+/** A revision request the backend interpreted and the app applied. */
+export type AppliedRevision = {
+  id: string;
+  /** What the user typed. */
+  request: string;
+  /** One-line description of what changed. */
+  summary: string;
+  changes: RevisionChange[];
+  /** Labels of the settings the revision left exactly as they were. */
+  preserved: string[];
+  /** Parts of the request this pipeline cannot act on. */
+  unsupported: string[];
+  /** Full generation recipe the outputs were rebuilt from. */
+  instructions: string;
+  createdAt: number;
+};
 
 /**
  * Where an output came from: built by the simulated generation pass, or a
@@ -144,9 +181,13 @@ export type Project = {
   photos: GarmentPhoto[];
   product: ProductData;
   style: StyleSelection;
+  /** Shoot-wide treatment set by AI revisions; empty until one is applied. */
+  treatment: TreatmentOverrides;
   assets: GeneratedAsset[];
   exportFormats: ExportFormatId[];
   catalog: CatalogSelection;
+  /** Applied revisions, newest first. */
+  revisions: AppliedRevision[];
 };
 
 export type FlowStep = 'upload' | 'product' | 'style' | 'generate' | 'review' | 'export';
