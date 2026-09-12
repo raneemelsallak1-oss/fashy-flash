@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { router } from 'expo-router';
 import { Spinner, Text } from 'heroui-native';
@@ -67,18 +67,26 @@ export default function GenerateScreen() {
   const runGeneration = useAppStore((state) => state.runGeneration);
   const { width } = useWindowDimensions();
   const [stage, setStage] = useState(0);
+  const hasFinished = useRef(false);
   const total = 6;
+  const hasDraft = draft !== null;
 
+  // Generation starts on its own as soon as this screen opens: the stages run,
+  // the outputs are built from the draft, then the results screen takes over.
   useEffect(() => {
-    if (stage >= total) {
-      runGeneration();
-      router.replace('/create/review');
-      return undefined;
+    if (!hasDraft) return undefined;
+
+    if (stage < total) {
+      const timer = setTimeout(() => setStage((value) => value + 1), STAGE_DURATION);
+      return () => clearTimeout(timer);
     }
 
-    const timer = setTimeout(() => setStage((value) => value + 1), STAGE_DURATION);
-    return () => clearTimeout(timer);
-  }, [runGeneration, stage, total]);
+    if (hasFinished.current) return undefined;
+    hasFinished.current = true;
+    runGeneration();
+    router.replace('/create/review');
+    return undefined;
+  }, [hasDraft, runGeneration, stage, total]);
 
   if (!draft) return <NoDraft />;
 

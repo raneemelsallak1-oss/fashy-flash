@@ -54,7 +54,14 @@ export type GalleryKey =
   | 'detail';
 
 /** The output variations generation produces from one configuration. */
-export type OutputVariation = 'front' | 'back' | 'detail' | 'full-body' | 'close-up';
+export type OutputVariation =
+  | 'front'
+  | 'back'
+  | 'detail'
+  | 'full-body'
+  | 'close-up'
+  | 'ecommerce'
+  | 'social';
 
 /**
  * One generated output. Every field is resolved from the user's uploads,
@@ -81,6 +88,8 @@ export type GeneratedAsset = {
   scene: GalleryKey | null;
   /** Staged outputs sit inside a scene; unstaged ones fill the frame. */
   staged: boolean;
+  /** True when the garment is presented on the selected model. */
+  worn: boolean;
   colorName: string;
   colorHex: string;
   /** Product data snapshot, e.g. "Pink · Cotton · Relaxed". */

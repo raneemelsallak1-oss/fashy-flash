@@ -1,7 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
 import { colorwayLayers, hexForColorName, type ImageLayer } from '@/lib/color';
-import { BACKGROUND_SCENE, imageForKind, MODEL_SCENE } from '@/lib/gallery';
+import { BACKGROUND_SCENE, imageForKind } from '@/lib/gallery';
 import type {
   AssetCategory,
   BackgroundChoice,
@@ -51,11 +51,13 @@ export const PURPOSE_LABEL: Record<ContentPurpose, string> = {
 };
 
 export const VARIATION_LABEL: Record<OutputVariation, string> = {
+  'full-body': 'Full body',
   front: 'Front view',
   back: 'Back view',
   detail: 'Detail view',
-  'full-body': 'Full-body',
   'close-up': 'Close-up',
+  ecommerce: 'E-commerce',
+  social: 'Social media',
 };
 
 export const SLOT_LABEL: Record<PhotoSlot, string> = {
@@ -82,6 +84,8 @@ export function backdropColors(asset: GeneratedAsset): [string, string] {
 }
 
 type VariationConfig = {
+  /** Stable id, so a purpose never adds an output the core plan already has. */
+  id: string;
   variation: OutputVariation;
   title: string;
   category: AssetCategory;
@@ -92,14 +96,34 @@ type VariationConfig = {
   inset: number;
   aspect: number;
   staged: boolean;
+  /** Presents the garment on the selected model instead of on its own. */
+  worn: boolean;
 };
 
-/** The five core outputs every configuration produces. */
+/**
+ * The outputs every configuration produces: full body, front, back, detail,
+ * close-up, e-commerce and social. Model-worn frames only appear when a model
+ * type is selected — "Product only" keeps the garment on its own.
+ */
 function coreVariations(style: StyleSelection): VariationConfig[] {
   const productOnly = style.model === 'none';
 
   return [
     {
+      id: 'full-body',
+      variation: 'full-body',
+      title: productOnly ? 'Full garment shot' : 'Full-body model image',
+      category: 'social',
+      slot: 'front',
+      zoom: 1.02,
+      focusY: 0.44,
+      inset: productOnly ? 0.13 : 0.05,
+      aspect: 2 / 3,
+      staged: true,
+      worn: !productOnly,
+    },
+    {
+      id: 'front',
       variation: 'front',
       title: 'Front view',
       category: 'ecommerce',
@@ -109,8 +133,10 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0,
       aspect: 3 / 4,
       staged: false,
+      worn: false,
     },
     {
+      id: 'back',
       variation: 'back',
       title: 'Back view',
       category: 'ecommerce',
@@ -120,10 +146,12 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0,
       aspect: 3 / 4,
       staged: false,
+      worn: false,
     },
     {
+      id: 'detail',
       variation: 'detail',
-      title: 'Detail view',
+      title: 'Detail close-up',
       category: 'catalog',
       slot: 'detail',
       zoom: 1.85,
@@ -131,19 +159,10 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0,
       aspect: 1,
       staged: false,
+      worn: false,
     },
     {
-      variation: 'full-body',
-      title: productOnly ? 'Full garment shot' : 'Full-body model image',
-      category: 'social',
-      slot: 'front',
-      zoom: 1.04,
-      focusY: 0.5,
-      inset: productOnly ? 0.13 : 0.09,
-      aspect: 2 / 3,
-      staged: true,
-    },
-    {
+      id: 'close-up',
       variation: 'close-up',
       title: 'Close-up product image',
       category: 'ecommerce',
@@ -153,79 +172,121 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0.13,
       aspect: 1,
       staged: true,
+      worn: false,
+    },
+    {
+      id: 'ecommerce',
+      variation: 'ecommerce',
+      title: 'E-commerce image',
+      category: 'ecommerce',
+      slot: 'front',
+      zoom: 1,
+      focusY: 0.5,
+      inset: 0.12,
+      aspect: 1,
+      staged: true,
+      worn: false,
+    },
+    {
+      id: 'social',
+      variation: 'social',
+      title: 'Social media image',
+      category: 'social',
+      slot: 'front',
+      zoom: 1.06,
+      focusY: 0.42,
+      inset: productOnly ? 0.1 : 0.05,
+      aspect: 4 / 5,
+      staged: true,
+      worn: !productOnly,
     },
   ];
 }
 
-/** Extra crops requested by the chosen content purposes. */
-const PURPOSE_VARIATIONS: Record<ContentPurpose, VariationConfig> = {
-  ecommerce: {
-    variation: 'front',
-    title: 'E-commerce main image',
-    category: 'ecommerce',
-    slot: 'front',
-    zoom: 1,
-    focusY: 0.5,
-    inset: 0.12,
-    aspect: 1,
-    staged: true,
-  },
-  instagram: {
-    variation: 'full-body',
-    title: 'Instagram square',
-    category: 'social',
-    slot: 'front',
-    zoom: 1.06,
-    focusY: 0.42,
-    inset: 0.07,
-    aspect: 1,
-    staged: true,
-  },
-  social: {
-    variation: 'full-body',
-    title: 'Story crop',
-    category: 'social',
-    slot: 'front',
-    zoom: 1.12,
-    focusY: 0.4,
-    inset: 0.06,
-    aspect: 9 / 16,
-    staged: true,
-  },
-  catalog: {
-    variation: 'front',
-    title: 'Catalog page image',
-    category: 'catalog',
-    slot: 'front',
-    zoom: 1,
-    focusY: 0.5,
-    inset: 0.09,
-    aspect: 4 / 5,
-    staged: true,
-  },
-  lookbook: {
-    variation: 'back',
-    title: 'Lookbook spread',
-    category: 'catalog',
-    slot: 'back',
-    zoom: 1.04,
-    focusY: 0.46,
-    inset: 0.1,
-    aspect: 4 / 5,
-    staged: true,
-  },
-  showroom: {
-    variation: 'detail',
-    title: 'Showroom fabric study',
-    category: 'catalog',
-    slot: 'detail',
-    zoom: 1.6,
-    focusY: 0.5,
-    inset: 0.1,
-    aspect: 4 / 5,
-    staged: true,
-  },
-};
+/**
+ * Extra crop a chosen content purpose adds on top of the core plan. Purposes
+ * already covered by a core output return null.
+ */
+function purposeVariation(purpose: ContentPurpose, style: StyleSelection): VariationConfig | null {
+  const worn = style.model !== 'none';
+
+  switch (purpose) {
+    case 'ecommerce':
+      return null;
+    case 'instagram':
+      return {
+        id: 'ig-square',
+        variation: 'social',
+        title: 'Instagram square',
+        category: 'social',
+        slot: 'front',
+        zoom: 1.06,
+        focusY: 0.42,
+        inset: worn ? 0.05 : 0.07,
+        aspect: 1,
+        staged: true,
+        worn,
+      };
+    case 'social':
+      return {
+        id: 'story',
+        variation: 'social',
+        title: 'Story crop',
+        category: 'social',
+        slot: 'front',
+        zoom: 1.12,
+        focusY: 0.4,
+        inset: worn ? 0.05 : 0.06,
+        aspect: 9 / 16,
+        staged: true,
+        worn,
+      };
+    case 'catalog':
+      return {
+        id: 'catalog-page',
+        variation: 'front',
+        title: 'Catalog page image',
+        category: 'catalog',
+        slot: 'front',
+        zoom: 1,
+        focusY: 0.5,
+        inset: 0.09,
+        aspect: 4 / 5,
+        staged: true,
+        worn: false,
+      };
+    case 'lookbook':
+      return {
+        id: 'lookbook',
+        variation: 'back',
+        title: 'Lookbook spread',
+        category: 'catalog',
+        slot: 'back',
+        zoom: 1.04,
+        focusY: 0.46,
+        inset: worn ? 0.06 : 0.1,
+        aspect: 4 / 5,
+        staged: true,
+        worn,
+      };
+    case 'showroom':
+      return {
+        id: 'showroom',
+        variation: 'detail',
+        title: 'Showroom fabric study',
+        category: 'catalog',
+        slot: 'detail',
+        zoom: 1.6,
+        focusY: 0.5,
+        inset: 0.1,
+        aspect: 4 / 5,
+        staged: true,
+        worn: false,
+      };
+    default:
+      return null;
+  }
+}
 
 const PURPOSE_ORDER: ContentPurpose[] = [
   'ecommerce',
@@ -239,10 +300,14 @@ const PURPOSE_ORDER: ContentPurpose[] = [
 /** Every output the current configuration will generate, in order. */
 export function variationPlan(style: StyleSelection): VariationConfig[] {
   const plan = coreVariations(style);
+  const ids = new Set(plan.map((config) => config.id));
   const chosen = new Set(style.purposes);
 
   PURPOSE_ORDER.filter((purpose) => chosen.has(purpose)).forEach((purpose) => {
-    plan.push(PURPOSE_VARIATIONS[purpose]);
+    const extra = purposeVariation(purpose, style);
+    if (!extra || ids.has(extra.id)) return;
+    plan.push(extra);
+    ids.add(extra.id);
   });
 
   return plan;
@@ -267,12 +332,9 @@ function sourcePhoto(photos: GarmentPhoto[], slot: PhotoSlot): GarmentPhoto | nu
   return null;
 }
 
-/** Scene staged behind an output, from the model and background choices. */
+/** Environment staged behind an output, from the chosen background. */
 function sceneFor(config: VariationConfig, style: StyleSelection): GalleryKey | null {
   if (!config.staged) return null;
-  if (config.variation === 'full-body' && style.model !== 'none') {
-    return MODEL_SCENE[style.model] ?? BACKGROUND_SCENE[style.background];
-  }
   return BACKGROUND_SCENE[style.background];
 }
 
@@ -329,6 +391,7 @@ export function buildAssets(project: Project): GeneratedAsset[] {
       background: style.background,
       scene: sceneFor(config, style),
       staged: config.staged,
+      worn: config.worn,
       colorName,
       colorHex,
       spec,
@@ -382,9 +445,6 @@ export function sceneForBackground(
   background: BackgroundChoice,
 ): GalleryKey | null {
   if (!asset.staged) return null;
-  if (asset.variation === 'full-body' && asset.model !== 'none' && background !== 'plain') {
-    return MODEL_SCENE[asset.model] ?? BACKGROUND_SCENE[background];
-  }
   return BACKGROUND_SCENE[background];
 }
 

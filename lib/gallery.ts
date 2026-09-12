@@ -28,14 +28,6 @@ export const BACKGROUND_SCENE: Record<BackgroundChoice, GalleryKey | null> = {
   custom: 'luxury',
 };
 
-/** Scene that carries the chosen model type behind a full-body output. */
-export const MODEL_SCENE: Record<ModelChoice, GalleryKey | null> = {
-  female: 'studio',
-  male: 'male',
-  diverse: 'diverse',
-  none: null,
-};
-
 const STYLE_LOOK: Record<VisualStyle, GalleryKey> = {
   minimal: 'ecommerce',
   studio: 'studio',
