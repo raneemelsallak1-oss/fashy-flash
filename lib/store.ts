@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 
+import { defaultCatalogSelection } from '@/lib/catalog';
 import { buildAssets, nextLook } from '@/lib/gallery';
 import type {
   ContentPurpose,
@@ -77,6 +78,8 @@ type AppState = {
 
   setExportFormats: (formats: ExportFormatId[]) => void;
   toggleExportFormat: (format: ExportFormatId) => void;
+  toggleCatalogImage: (imageId: string) => void;
+  toggleCatalogColorway: (colorwayId: string) => void;
   commitProject: () => void;
 };
 
@@ -117,6 +120,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         style: { ...DEFAULT_STYLE, purposes: [...DEFAULT_STYLE.purposes] },
         assets: [],
         exportFormats: ['ig-post', 'ecommerce'],
+        catalog: { imageIds: [], colorwayIds: ['base'] },
       },
       selection: [],
       autoDetected: false,
@@ -195,8 +199,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   runGeneration: () => {
     const draft = get().draft;
     if (!draft) return;
+    const generated: Draft = { ...draft, assets: buildAssets(draft.style, draft.id) };
     set({
-      draft: { ...draft, assets: buildAssets(draft.style, draft.id) },
+      draft: { ...generated, catalog: defaultCatalogSelection(generated) },
       selection: [],
     });
   },
@@ -267,6 +272,40 @@ export const useAppStore = create<AppState>((set, get) => ({
         exportFormats: active
           ? draft.exportFormats.filter((item) => item !== format)
           : [...draft.exportFormats, format],
+      },
+    });
+  },
+
+  toggleCatalogImage: (imageId) => {
+    const draft = get().draft;
+    if (!draft) return;
+    const active = draft.catalog.imageIds.includes(imageId);
+    set({
+      draft: {
+        ...draft,
+        catalog: {
+          ...draft.catalog,
+          imageIds: active
+            ? draft.catalog.imageIds.filter((item) => item !== imageId)
+            : [...draft.catalog.imageIds, imageId],
+        },
+      },
+    });
+  },
+
+  toggleCatalogColorway: (colorwayId) => {
+    const draft = get().draft;
+    if (!draft) return;
+    const active = draft.catalog.colorwayIds.includes(colorwayId);
+    set({
+      draft: {
+        ...draft,
+        catalog: {
+          ...draft.catalog,
+          colorwayIds: active
+            ? draft.catalog.colorwayIds.filter((item) => item !== colorwayId)
+            : [...draft.catalog.colorwayIds, colorwayId],
+        },
       },
     });
   },

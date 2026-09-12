@@ -91,6 +91,12 @@ export const EXPORT_FORMATS: {
     spec: 'Fashion presentation format',
     hint: 'Editorial spreads for buyers',
   },
+  {
+    id: 'catalog-pdf',
+    label: 'Digital Catalog PDF',
+    spec: 'Multi-page A4 PDF',
+    hint: 'Front, back, detail and colorways with product data',
+  },
 ];
 
 export const CATEGORY_SUGGESTIONS = [

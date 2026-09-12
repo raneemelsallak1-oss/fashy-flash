@@ -68,7 +68,21 @@ export type GeneratedAsset = {
   isApproved: boolean;
 };
 
-export type ExportFormatId = 'ig-post' | 'ig-story' | 'ecommerce' | 'catalog' | 'lookbook';
+export type ExportFormatId =
+  | 'ig-post'
+  | 'ig-story'
+  | 'ecommerce'
+  | 'catalog'
+  | 'lookbook'
+  | 'catalog-pdf';
+
+/** What the user ticked for the Digital Catalog PDF. */
+export type CatalogSelection = {
+  /** CatalogImage ids: generated assets and uploaded garment photos. */
+  imageIds: string[];
+  /** Colorway ids from lib/catalog.ts. */
+  colorwayIds: string[];
+};
 
 export type Project = {
   id: string;
@@ -79,6 +93,7 @@ export type Project = {
   style: StyleSelection;
   assets: GeneratedAsset[];
   exportFormats: ExportFormatId[];
+  catalog: CatalogSelection;
 };
 
 export type FlowStep = 'upload' | 'product' | 'style' | 'generate' | 'review' | 'export';

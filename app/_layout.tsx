@@ -178,6 +178,7 @@ export default function RootLayout() {
           />
           <Stack.Screen name="create/review" options={{ title: 'Your generated content' }} />
           <Stack.Screen name="create/export" options={{ title: 'Export' }} />
+          <Stack.Screen name="create/catalog" options={{ title: 'Catalog preview' }} />
           <Stack.Screen name="project/[projectId]" options={{ title: 'Project' }} />
           <Stack.Screen
             name="asset/[assetId]"

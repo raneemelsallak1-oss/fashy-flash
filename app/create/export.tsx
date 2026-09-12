@@ -7,33 +7,34 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 
 import { FlowHeader } from '@/components/flow/FlowHeader';
 import { NoDraft } from '@/components/flow/NoDraft';
+import { CatalogBuilder } from '@/components/export/CatalogBuilder';
 import { FormatCard } from '@/components/export/FormatCard';
 import { AssetImage } from '@/components/ui/AssetImage';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/ActionButton';
 import { FooterBar } from '@/components/ui/FooterBar';
 import { ScreenTitle, SectionLabel } from '@/components/ui/ScreenTitle';
 import { Tappable } from '@/components/ui/Tappable';
-import { downloadAssetFiles } from '@/lib/download';
+import {
+  buildCatalogDocument,
+  catalogImages,
+  colorwaysForProduct,
+  expandSizeRange,
+  groupCatalogImages,
+} from '@/lib/catalog';
+import { downloadAssetFiles, downloadCatalogPdf } from '@/lib/download';
 import { imageForAsset } from '@/lib/gallery';
 import { EXPORT_FORMATS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
-import { cn } from '@/lib/utils';
-
-function slugify(value: string) {
-  return (
-    value
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/(^-|-$)/g, '') || 'fashy-flash'
-  );
-}
+import { cn, slugify } from '@/lib/utils';
 
 export default function ExportScreen() {
   const draft = useAppStore((state) => state.draft);
   const selection = useAppStore((state) => state.selection);
   const toggleSelection = useAppStore((state) => state.toggleSelection);
   const toggleExportFormat = useAppStore((state) => state.toggleExportFormat);
+  const toggleCatalogImage = useAppStore((state) => state.toggleCatalogImage);
+  const toggleCatalogColorway = useAppStore((state) => state.toggleCatalogColorway);
   const commitProject = useAppStore((state) => state.commitProject);
   const startProject = useAppStore((state) => state.startProject);
   const { width } = useWindowDimensions();
@@ -49,20 +50,46 @@ export default function ExportScreen() {
   const assets = draft.assets;
   const formats = draft.exportFormats;
   const chosen = assets.filter((asset) => selection.includes(asset.id));
-  const canDownload = chosen.length > 0 && formats.length > 0 && !isWorking;
-  const railTile = Math.min(96, (Math.min(width, 560) - 40) / 3.4);
+  const imageFormats = formats.filter((format) => format !== 'catalog-pdf');
+  const wantsCatalog = formats.includes('catalog-pdf');
+  const needsAssets = imageFormats.length > 0 && chosen.length === 0;
+  const catalogReady = !wantsCatalog || draft.catalog.imageIds.length > 0;
+  const canDownload = formats.length > 0 && !needsAssets && catalogReady && !isWorking;
+  const contentWidth = Math.min(width, 560) - 40;
+  const railTile = Math.min(96, contentWidth / 3.4);
+  const catalogTile = Math.min(94, (contentWidth - 32 - 20) / 3);
+
+  const groups = groupCatalogImages(catalogImages(draft));
+  const colorways = colorwaysForProduct(draft.product);
+  const sizes = expandSizeRange(draft.product.sizeRange);
+  const dataLines = [
+    { label: 'Product name', value: draft.product.name.trim() || 'Untitled piece' },
+    { label: 'Category', value: draft.product.category.trim() || 'Not set' },
+    { label: 'Color', value: draft.product.color.trim() || 'Not set' },
+    { label: 'Material', value: draft.product.material.trim() || 'Not set' },
+    {
+      label: 'Available sizes',
+      value: sizes.length > 0 ? sizes.join(' · ') : draft.product.sizeRange.trim() || 'Not set',
+    },
+  ];
 
   const download = async () => {
     setIsWorking(true);
     const slug = slugify(draft.product.name || 'fashy-flash');
     const files = chosen.flatMap((asset) =>
-      formats.map((format) => ({
+      imageFormats.map((format) => ({
         source: imageForAsset(asset),
         fileName: `${slug}-${slugify(asset.title)}-${format}.png`,
       })),
     );
 
-    const saved = await downloadAssetFiles(files);
+    let saved = await downloadAssetFiles(files);
+
+    if (wantsCatalog) {
+      const done = await downloadCatalogPdf(buildCatalogDocument(draft), `${slug}-catalog.pdf`);
+      if (done) saved += 1;
+    }
+
     commitProject();
     setSavedCount(saved);
     setIsWorking(false);
@@ -72,6 +99,13 @@ export default function ExportScreen() {
     startProject();
     router.dismissTo('/');
     router.push('/create/upload');
+  };
+
+  const footerHint = () => {
+    if (formats.length === 0) return 'Select at least one export format.';
+    if (needsAssets) return 'Select at least one visual to export.';
+    if (!catalogReady) return 'Pick at least one garment image for the catalog PDF.';
+    return null;
   };
 
   return (
@@ -161,16 +195,28 @@ export default function ExportScreen() {
               />
             ))}
           </View>
+
+          {wantsCatalog ? (
+            <Animated.View entering={FadeInDown.duration(240)}>
+              <CatalogBuilder
+                groups={groups}
+                selectedImageIds={draft.catalog.imageIds}
+                colorways={colorways}
+                selectedColorwayIds={draft.catalog.colorwayIds}
+                dataLines={dataLines}
+                tileWidth={catalogTile}
+                onToggleImage={toggleCatalogImage}
+                onToggleColorway={toggleCatalogColorway}
+                onPreview={() => router.push('/create/catalog')}
+              />
+            </Animated.View>
+          ) : null}
         </View>
       </ScrollView>
 
       <FooterBar>
-        {!canDownload && !isWorking ? (
-          <Text className="text-muted text-center text-[12px]">
-            {chosen.length === 0
-              ? 'Select at least one visual to export.'
-              : 'Select at least one export format.'}
-          </Text>
+        {!isWorking && footerHint() ? (
+          <Text className="text-muted text-center text-[12px]">{footerHint()}</Text>
         ) : null}
 
         <PrimaryButton
