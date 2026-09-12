@@ -47,7 +47,7 @@ export function Tappable({ className, scaleTo = 0.975, style, children, ...props
   return (
     <NestedTappableContext.Provider value>
       <AnimatedPressable
-        className={className}
+        {...(className === undefined ? {} : { className })}
         style={[style, animatedStyle]}
         onPressIn={() => {
           // oxlint-disable-next-line react/immutability -- Reanimated's SharedValue is designed to be mutated via `.value`.
