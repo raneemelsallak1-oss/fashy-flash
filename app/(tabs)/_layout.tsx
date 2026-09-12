@@ -1,42 +1,43 @@
-import { Home } from 'lucide-react-native';
 import { Tabs } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useThemeColor } from 'heroui-native';
-import { useUniwind } from 'uniwind';
+import { LayoutGrid, Sparkles } from 'lucide-react-native';
+
+import { palette } from '@/lib/theme';
 
 export default function TabLayout() {
-  const { theme } = useUniwind();
-  const [background, foreground, border, accent, muted] = useThemeColor([
-    'background',
-    'foreground',
-    'border',
-    'accent',
-    'muted',
-  ]);
-
   return (
     <>
-      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+      {/* oxlint-disable-next-line react/style-prop-object -- expo-status-bar's `style` prop is a string enum ('dark' | 'light' | 'auto'), not a React Native style object. */}
+      <StatusBar style="dark" />
       <Tabs
         screenOptions={{
-          headerStyle: { backgroundColor: background },
-          headerTintColor: foreground,
-          headerTitleStyle: { color: foreground },
-          headerShadowVisible: false,
-          sceneStyle: { backgroundColor: background },
+          headerShown: false,
+          sceneStyle: { backgroundColor: palette.ivory },
           tabBarStyle: {
-            backgroundColor: background,
-            borderTopColor: border,
+            backgroundColor: palette.ivory,
+            borderTopColor: palette.sandSoft,
+            elevation: 0,
+            shadowColor: palette.charcoal,
+            shadowOpacity: 0,
+            shadowRadius: 0,
           },
-          tabBarActiveTintColor: accent,
-          tabBarInactiveTintColor: muted,
+          tabBarActiveTintColor: palette.blush,
+          tabBarInactiveTintColor: palette.muted,
+          tabBarLabelStyle: { fontSize: 11, letterSpacing: 0.4 },
         }}
       >
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Home',
-            tabBarIcon: ({ color, size }) => <Home color={color} size={size ?? 24} />,
+            title: 'Studio',
+            tabBarIcon: ({ color, size }) => <Sparkles color={color} size={size ?? 22} />,
+          }}
+        />
+        <Tabs.Screen
+          name="projects"
+          options={{
+            title: 'Projects',
+            tabBarIcon: ({ color, size }) => <LayoutGrid color={color} size={size ?? 22} />,
           }}
         />
       </Tabs>

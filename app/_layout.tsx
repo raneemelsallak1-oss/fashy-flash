@@ -9,6 +9,12 @@ import {
   Inter_700Bold,
   useFonts,
 } from '@expo-google-fonts/inter';
+import {
+  PlayfairDisplay_500Medium,
+  PlayfairDisplay_600SemiBold,
+} from '@expo-google-fonts/playfair-display';
+
+import { palette } from '@/lib/theme';
 import Constants, { ExecutionEnvironment } from 'expo-constants';
 import { Platform } from 'react-native';
 import { useEffect } from 'react';
@@ -54,6 +60,8 @@ export default function RootLayout() {
     Inter_500Medium,
     Inter_600SemiBold,
     Inter_700Bold,
+    PlayfairDisplay_500Medium,
+    PlayfairDisplay_600SemiBold,
   });
 
   // Report uncaught JS errors and unhandled promise rejections to parent (Bilt preview iframe)
@@ -96,6 +104,19 @@ export default function RootLayout() {
           'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap';
         link.crossOrigin = 'anonymous';
         document.head.appendChild(link);
+      }
+
+      const existingDisplayLink = document.querySelector(
+        'link[href*="fonts.googleapis.com/css2?family=Playfair"]',
+      );
+
+      if (!existingDisplayLink) {
+        const displayLink = document.createElement('link');
+        displayLink.rel = 'stylesheet';
+        displayLink.href =
+          'https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&display=swap';
+        displayLink.crossOrigin = 'anonymous';
+        document.head.appendChild(displayLink);
       }
 
       // Note: The @import in global.css and the link tag above ensure Inter font loads
@@ -141,8 +162,31 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <HeroUINativeProvider>
-        <Stack>
-          <Stack.Screen name="(tabs)" options={{ title: 'Habits', headerShown: false }} />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: palette.ivory },
+          }}
+        >
+          <Stack.Screen name="(tabs)" options={{ title: 'Fashy Flash' }} />
+          <Stack.Screen name="create/upload" options={{ title: 'Upload garment' }} />
+          <Stack.Screen name="create/product" options={{ title: 'Product data' }} />
+          <Stack.Screen name="create/style" options={{ title: 'Choose your style' }} />
+          <Stack.Screen
+            name="create/generate"
+            options={{ title: 'Generating', gestureEnabled: false }}
+          />
+          <Stack.Screen name="create/review" options={{ title: 'Your generated content' }} />
+          <Stack.Screen name="create/export" options={{ title: 'Export' }} />
+          <Stack.Screen name="project/[projectId]" options={{ title: 'Project' }} />
+          <Stack.Screen
+            name="asset/[assetId]"
+            options={{
+              title: 'Preview',
+              presentation: 'modal',
+              contentStyle: { backgroundColor: palette.ivory },
+            }}
+          />
         </Stack>
         <InstallPrompt />
       </HeroUINativeProvider>
