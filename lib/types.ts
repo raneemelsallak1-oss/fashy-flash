@@ -53,12 +53,48 @@ export type GalleryKey =
   | 'product'
   | 'detail';
 
+/** The output variations generation produces from one configuration. */
+export type OutputVariation = 'front' | 'back' | 'detail' | 'full-body' | 'close-up';
+
+/**
+ * One generated output. Every field is resolved from the user's uploads,
+ * product data and style choices at generation time, so an asset carries the
+ * full recipe it was rendered from.
+ */
 export type GeneratedAsset = {
   id: string;
   title: string;
+  variation: OutputVariation;
   category: AssetCategory;
-  kind: GalleryKey;
+  /** Uploaded garment photo this output was rendered from. */
+  sourceUri: string | null;
+  /** Tag of the upload that was used. */
+  sourceSlot: PhotoSlot;
+  /** Tag the variation asked for. */
+  requestedSlot: PhotoSlot;
+  /** True when no upload carried the requested tag and another one was reused. */
+  isDerived: boolean;
+  model: ModelChoice;
+  visualStyle: VisualStyle;
   background: BackgroundChoice;
+  /** Curated environment behind a staged garment; null renders a plain sweep. */
+  scene: GalleryKey | null;
+  /** Staged outputs sit inside a scene; unstaged ones fill the frame. */
+  staged: boolean;
+  colorName: string;
+  colorHex: string;
+  /** Product data snapshot, e.g. "Pink · Cotton · Relaxed". */
+  spec: string;
+  /** Crop scale over the source photo, 1 = full frame. */
+  zoom: number;
+  /** Crop scale the variation was planned with; takes are applied on top. */
+  baseZoom: number;
+  /** Vertical crop focus, 0 = top, 1 = bottom. */
+  focusY: number;
+  /** Frame padding as a fraction of width; 0 = full bleed. */
+  inset: number;
+  /** Regeneration counter — each take restages the same garment. */
+  take: number;
   lighting: Lighting;
   enhanced: boolean;
   shadow: boolean;

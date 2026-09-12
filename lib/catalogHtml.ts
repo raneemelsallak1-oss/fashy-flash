@@ -30,7 +30,9 @@ function overlays(image: CatalogImage): string {
   return image.overlays
     .map(
       (overlay) =>
-        `<span class="layer" style="background:${overlay.color};opacity:${overlay.opacity}"></span>`,
+        `<span class="layer" style="background:${overlay.color};opacity:${overlay.opacity}${
+          overlay.blend ? `;mix-blend-mode:${overlay.blend}` : ''
+        }"></span>`,
     )
     .join('');
 }
@@ -245,7 +247,7 @@ const STYLES = `
   .body { font-size: 9.5pt; line-height: 1.5; color: #615C58; margin: 1mm 0 0; }
   .frame { margin: 0; display: flex; flex-direction: column; gap: 2mm; }
   .frame-fill { flex: 1; min-height: 0; }
-  .frame-media { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 1mm; background: #F5F0E9; }
+  .frame-media { position: relative; flex: 1; min-height: 0; overflow: hidden; border-radius: 1mm; background: #F5F0E9; isolation: isolate; }
   .frame-media img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .frame-empty {
     flex: 1; display: flex; align-items: center; justify-content: center;

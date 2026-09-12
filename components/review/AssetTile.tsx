@@ -4,6 +4,7 @@ import { Check, Heart } from 'lucide-react-native';
 
 import { AssetImage } from '@/components/ui/AssetImage';
 import { Tappable } from '@/components/ui/Tappable';
+import { VARIATION_LABEL } from '@/lib/generation';
 import { palette } from '@/lib/theme';
 import type { GeneratedAsset } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -91,8 +92,13 @@ export function AssetTile({
       </View>
 
       <View className="gap-0.5">
+        <Text className="text-muted text-[10px] tracking-[1.4px] uppercase">
+          {VARIATION_LABEL[asset.variation]}
+        </Text>
         <Text className="text-foreground text-[13px] leading-[17px]">{asset.title}</Text>
-        <Text className="text-muted text-[11px]">{CATEGORY_LABEL[asset.category]}</Text>
+        <Text className="text-muted text-[11px]" numberOfLines={1}>
+          {asset.spec || CATEGORY_LABEL[asset.category]}
+        </Text>
       </View>
     </View>
   );

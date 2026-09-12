@@ -30,7 +30,11 @@ export function CatalogPhoto({
   return (
     <View
       className={cn('bg-ivory-deep overflow-hidden', rounded, className)}
-      style={fill ? { flex: 1, width } : { width, aspectRatio: aspect ?? image.aspect }}
+      style={
+        fill
+          ? { flex: 1, width, isolation: 'isolate' }
+          : { width, aspectRatio: aspect ?? image.aspect, isolation: 'isolate' }
+      }
     >
       <Image
         source={image.source}
@@ -40,7 +44,7 @@ export function CatalogPhoto({
       />
       {image.overlays.map((overlay) => (
         <View
-          key={overlay.color}
+          key={overlay.id}
           pointerEvents="none"
           style={{
             position: 'absolute',
@@ -50,6 +54,7 @@ export function CatalogPhoto({
             bottom: 0,
             backgroundColor: overlay.color,
             opacity: overlay.opacity,
+            mixBlendMode: overlay.blend,
           }}
         />
       ))}

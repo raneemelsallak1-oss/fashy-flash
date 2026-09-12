@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Text } from 'heroui-native';
 import { ArrowRight } from 'lucide-react-native';
 
+import { ConfigChips } from '@/components/flow/ConfigSummary';
 import { FlowHeader } from '@/components/flow/FlowHeader';
 import { NoDraft } from '@/components/flow/NoDraft';
 import { AssetTile } from '@/components/review/AssetTile';
@@ -46,8 +47,10 @@ export default function ReviewScreen() {
         <ScreenTitle
           eyebrow="Step five"
           title="Your generated content"
-          support={`${assets.length} visuals ready. Tap any image to preview and refine it.`}
+          support={`${assets.length} visuals built from your photos and settings. Tap any image to preview and refine it.`}
         />
+
+        <ConfigChips project={draft} />
 
         <FilterTabs value={filter} onChange={setFilter} />
 

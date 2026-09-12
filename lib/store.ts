@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { defaultCatalogSelection } from '@/lib/catalog';
-import { buildAssets, nextLook } from '@/lib/gallery';
+import { buildAssets, nextTake } from '@/lib/generation';
 import type {
   ContentPurpose,
   ExportFormatId,
@@ -199,7 +199,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   runGeneration: () => {
     const draft = get().draft;
     if (!draft) return;
-    const generated: Draft = { ...draft, assets: buildAssets(draft.style, draft.id) };
+    const generated: Draft = { ...draft, assets: buildAssets(draft) };
     set({
       draft: { ...generated, catalog: defaultCatalogSelection(generated) },
       selection: [],
@@ -237,8 +237,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       draft: mapAssets(draft, assetId, (asset) => ({
         ...asset,
-        kind: nextLook(asset),
-        isApproved: false,
+        ...nextTake(asset),
       })),
     });
   },

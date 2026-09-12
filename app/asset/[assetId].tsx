@@ -9,7 +9,13 @@ import { PrimaryButton, SecondaryButton } from '@/components/ui/ActionButton';
 import { FooterBar } from '@/components/ui/FooterBar';
 import { SectionLabel } from '@/components/ui/ScreenTitle';
 import { Tappable } from '@/components/ui/Tappable';
-import { kindForBackground } from '@/lib/gallery';
+import { hexForColorName } from '@/lib/color';
+import {
+  describeLook,
+  describeSource,
+  sceneForBackground,
+  VARIATION_LABEL,
+} from '@/lib/generation';
 import { BACKGROUND_OPTIONS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
@@ -150,6 +156,35 @@ export default function AssetPreviewScreen() {
           </View>
         </View>
 
+        <View className="border-border bg-surface gap-2.5 rounded-[20px] border px-4 py-3.5">
+          {[
+            { label: 'Output', value: `${VARIATION_LABEL[asset.variation]} · Take ${asset.take}` },
+            { label: 'Built from', value: describeSource(asset) },
+            { label: 'Look', value: describeLook(asset) },
+            {
+              label: 'Colorway',
+              value: asset.colorName || 'As photographed',
+              hex: asset.colorName ? asset.colorHex : hexForColorName(''),
+            },
+            ...(asset.spec ? [{ label: 'Product', value: asset.spec }] : []),
+          ].map((row) => (
+            <View key={row.label} className="flex-row items-center justify-between gap-4">
+              <Text className="text-muted text-[11px] tracking-[1.4px] uppercase">{row.label}</Text>
+              <View className="flex-1 flex-row items-center justify-end gap-2">
+                {'hex' in row && row.hex ? (
+                  <View
+                    className="border-sand rounded-full border"
+                    style={{ width: 12, height: 12, backgroundColor: row.hex }}
+                  />
+                ) : null}
+                <Text className="text-charcoal-soft flex-1 text-right text-[12px]">
+                  {row.value}
+                </Text>
+              </View>
+            </View>
+          ))}
+        </View>
+
         <View className="gap-3">
           <SectionLabel label="Change background" />
           <View className="flex-row flex-wrap gap-2">
@@ -162,7 +197,7 @@ export default function AssetPreviewScreen() {
                   const background = option.id;
                   updateAsset(asset.id, {
                     background,
-                    kind: kindForBackground(asset, background),
+                    scene: sceneForBackground(asset, background),
                   });
                 }}
               />
