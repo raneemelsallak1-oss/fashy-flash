@@ -1,9 +1,11 @@
 import type {
+  AssetCategory,
   BackgroundChoice,
   ContentPurpose,
   ExportFormatId,
   FlowStep,
   ModelChoice,
+  OutputVariation,
   PhotoSlot,
   VisualStyle,
 } from '@/lib/types';
@@ -97,6 +99,21 @@ export const EXPORT_FORMATS: {
     spec: 'Multi-page A4 PDF',
     hint: 'Front, back, detail and colorways with product data',
   },
+];
+
+/** Views an imported photo can be tagged as, so the catalog places it right. */
+export const IMPORT_VIEW_OPTIONS: { id: OutputVariation; label: string }[] = [
+  { id: 'front', label: 'Front view' },
+  { id: 'back', label: 'Back view' },
+  { id: 'detail', label: 'Detail view' },
+  { id: 'full-body', label: 'Full body' },
+];
+
+/** Content types the review filters group visuals by. */
+export const ASSET_CATEGORY_OPTIONS: { id: AssetCategory; label: string }[] = [
+  { id: 'ecommerce', label: 'E-commerce' },
+  { id: 'social', label: 'Social' },
+  { id: 'catalog', label: 'Catalog' },
 ];
 
 export const CATEGORY_SUGGESTIONS = [

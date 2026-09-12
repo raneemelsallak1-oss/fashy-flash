@@ -93,7 +93,9 @@ export function AssetTile({
 
       <View className="gap-0.5">
         <Text className="text-muted text-[10px] tracking-[1.4px] uppercase">
-          {VARIATION_LABEL[asset.variation]}
+          {asset.origin === 'imported'
+            ? `Imported · ${VARIATION_LABEL[asset.variation]}`
+            : VARIATION_LABEL[asset.variation]}
         </Text>
         <Text className="text-foreground text-[13px] leading-[17px]">{asset.title}</Text>
         <Text className="text-muted text-[11px]" numberOfLines={1}>

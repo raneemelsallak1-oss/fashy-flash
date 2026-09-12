@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { ScrollView, useWindowDimensions, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Spinner, Switch, Text } from 'heroui-native';
-import { Heart, RefreshCw, X } from 'lucide-react-native';
+import { Heart, RefreshCw, Trash2, X } from 'lucide-react-native';
 
 import { AssetImage } from '@/components/ui/AssetImage';
 import { PrimaryButton, SecondaryButton } from '@/components/ui/ActionButton';
@@ -16,7 +16,8 @@ import {
   sceneForBackground,
   VARIATION_LABEL,
 } from '@/lib/generation';
-import { BACKGROUND_OPTIONS } from '@/lib/options';
+import { goBackOrReplace } from '@/lib/navigation';
+import { ASSET_CATEGORY_OPTIONS, BACKGROUND_OPTIONS, IMPORT_VIEW_OPTIONS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
 import type { Lighting } from '@/lib/types';
@@ -72,12 +73,15 @@ function ToggleRow({ label, hint, value, onChange }: ToggleRowProps) {
   );
 }
 
+type InfoRow = { label: string; value: string; hex?: string };
+
 export default function AssetPreviewScreen() {
   const { assetId } = useLocalSearchParams<{ assetId: string }>();
   const draft = useAppStore((state) => state.draft);
   const updateAsset = useAppStore((state) => state.updateAsset);
   const regenerateAsset = useAppStore((state) => state.regenerateAsset);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
+  const removeAsset = useAppStore((state) => state.removeAsset);
   const { width } = useWindowDimensions();
   const [isRegenerating, setIsRegenerating] = useState(false);
 
@@ -105,6 +109,30 @@ export default function AssetPreviewScreen() {
 
   const contentWidth = Math.min(width, 560) - 40;
   const previewWidth = Math.min(contentWidth, 400 * asset.aspect);
+  const isImported = asset.origin === 'imported';
+
+  const infoRows: InfoRow[] = isImported
+    ? [
+        { label: 'Output', value: `Imported · ${VARIATION_LABEL[asset.variation]}` },
+        { label: 'Source', value: describeSource(asset) },
+        ...(asset.spec ? [{ label: 'Product', value: asset.spec }] : []),
+      ]
+    : [
+        { label: 'Output', value: `${VARIATION_LABEL[asset.variation]} · Take ${asset.take}` },
+        { label: 'Built from', value: describeSource(asset) },
+        { label: 'Look', value: describeLook(asset) },
+        {
+          label: 'Colorway',
+          value: asset.colorName || 'As photographed',
+          hex: asset.colorName ? asset.colorHex : hexForColorName(''),
+        },
+        ...(asset.spec ? [{ label: 'Product', value: asset.spec }] : []),
+      ];
+
+  const removeImported = () => {
+    goBackOrReplace('/create/review');
+    removeAsset(asset.id);
+  };
 
   return (
     <View className="bg-ivory flex-1">
@@ -157,21 +185,11 @@ export default function AssetPreviewScreen() {
         </View>
 
         <View className="border-border bg-surface gap-2.5 rounded-[20px] border px-4 py-3.5">
-          {[
-            { label: 'Output', value: `${VARIATION_LABEL[asset.variation]} · Take ${asset.take}` },
-            { label: 'Built from', value: describeSource(asset) },
-            { label: 'Look', value: describeLook(asset) },
-            {
-              label: 'Colorway',
-              value: asset.colorName || 'As photographed',
-              hex: asset.colorName ? asset.colorHex : hexForColorName(''),
-            },
-            ...(asset.spec ? [{ label: 'Product', value: asset.spec }] : []),
-          ].map((row) => (
+          {infoRows.map((row) => (
             <View key={row.label} className="flex-row items-center justify-between gap-4">
               <Text className="text-muted text-[11px] tracking-[1.4px] uppercase">{row.label}</Text>
               <View className="flex-1 flex-row items-center justify-end gap-2">
-                {'hex' in row && row.hex ? (
+                {row.hex ? (
                   <View
                     className="border-sand rounded-full border"
                     style={{ width: 12, height: 12, backgroundColor: row.hex }}
@@ -185,61 +203,109 @@ export default function AssetPreviewScreen() {
           ))}
         </View>
 
-        <View className="gap-3">
-          <SectionLabel label="Change background" />
-          <View className="flex-row flex-wrap gap-2">
-            {BACKGROUND_OPTIONS.map((option) => (
-              <ControlPill
-                key={option.id}
-                label={option.label}
-                selected={asset.background === option.id}
-                onPress={() => {
-                  const background = option.id;
-                  updateAsset(asset.id, {
-                    background,
-                    scene: sceneForBackground(asset, background),
-                  });
-                }}
+        {isImported ? (
+          <>
+            <View className="gap-3">
+              <SectionLabel label="Catalog view" hint="Where this photo belongs" />
+              <View className="flex-row flex-wrap gap-2">
+                {IMPORT_VIEW_OPTIONS.map((option) => (
+                  <ControlPill
+                    key={option.id}
+                    label={option.label}
+                    selected={asset.variation === option.id}
+                    onPress={() => updateAsset(asset.id, { variation: option.id })}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View className="gap-3">
+              <SectionLabel label="Content type" hint="Groups it under the review filters" />
+              <View className="flex-row flex-wrap gap-2">
+                {ASSET_CATEGORY_OPTIONS.map((option) => (
+                  <ControlPill
+                    key={option.id}
+                    label={option.label}
+                    selected={asset.category === option.id}
+                    onPress={() => updateAsset(asset.id, { category: option.id })}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View className="border-border bg-surface gap-1 rounded-[18px] border px-4 py-3.5">
+              <Text className="text-foreground text-[14px]">Shown exactly as imported</Text>
+              <Text className="text-muted text-[12px] leading-[18px]">
+                Colorway, staging and lighting passes are skipped for your own photos, so nothing is
+                painted over the file you brought in.
+              </Text>
+            </View>
+
+            <SecondaryButton
+              label="Remove photo"
+              onPress={removeImported}
+              icon={<Trash2 color={palette.charcoal} size={15} />}
+            />
+          </>
+        ) : (
+          <>
+            <View className="gap-3">
+              <SectionLabel label="Change background" />
+              <View className="flex-row flex-wrap gap-2">
+                {BACKGROUND_OPTIONS.map((option) => (
+                  <ControlPill
+                    key={option.id}
+                    label={option.label}
+                    selected={asset.background === option.id}
+                    onPress={() => {
+                      const background = option.id;
+                      updateAsset(asset.id, {
+                        background,
+                        scene: sceneForBackground(asset, background),
+                      });
+                    }}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View className="gap-3">
+              <SectionLabel label="Adjust lighting" />
+              <View className="flex-row flex-wrap gap-2">
+                {LIGHTING_OPTIONS.map((option) => (
+                  <ControlPill
+                    key={option.id}
+                    label={option.label}
+                    selected={asset.lighting === option.id}
+                    onPress={() => updateAsset(asset.id, { lighting: option.id })}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View className="gap-2.5">
+              <ToggleRow
+                label="Enhance details"
+                hint="Deeper contrast and crisper fabric texture"
+                value={asset.enhanced}
+                onChange={(value) => updateAsset(asset.id, { enhanced: value })}
               />
-            ))}
-          </View>
-        </View>
-
-        <View className="gap-3">
-          <SectionLabel label="Adjust lighting" />
-          <View className="flex-row flex-wrap gap-2">
-            {LIGHTING_OPTIONS.map((option) => (
-              <ControlPill
-                key={option.id}
-                label={option.label}
-                selected={asset.lighting === option.id}
-                onPress={() => updateAsset(asset.id, { lighting: option.id })}
+              <ToggleRow
+                label="Shadow"
+                hint="Grounds the garment with a soft cast shadow"
+                value={asset.shadow}
+                onChange={(value) => updateAsset(asset.id, { shadow: value })}
               />
-            ))}
-          </View>
-        </View>
+            </View>
 
-        <View className="gap-2.5">
-          <ToggleRow
-            label="Enhance details"
-            hint="Deeper contrast and crisper fabric texture"
-            value={asset.enhanced}
-            onChange={(value) => updateAsset(asset.id, { enhanced: value })}
-          />
-          <ToggleRow
-            label="Shadow"
-            hint="Grounds the garment with a soft cast shadow"
-            value={asset.shadow}
-            onChange={(value) => updateAsset(asset.id, { shadow: value })}
-          />
-        </View>
-
-        <SecondaryButton
-          label={isRegenerating ? 'Regenerating…' : 'Regenerate'}
-          isDisabled={isRegenerating}
-          onPress={() => setIsRegenerating(true)}
-          icon={<RefreshCw color={palette.charcoal} size={15} />}
-        />
+            <SecondaryButton
+              label={isRegenerating ? 'Regenerating…' : 'Regenerate'}
+              isDisabled={isRegenerating}
+              onPress={() => setIsRegenerating(true)}
+              icon={<RefreshCw color={palette.charcoal} size={15} />}
+            />
+          </>
+        )}
       </ScrollView>
 
       <FooterBar>

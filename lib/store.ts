@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { defaultCatalogSelection } from '@/lib/catalog';
-import { buildAssets, nextTake } from '@/lib/generation';
+import { buildAssets, buildImportedAsset, nextTake } from '@/lib/generation';
 import type {
   ContentPurpose,
   ExportFormatId,
@@ -68,6 +68,9 @@ type AppState = {
   togglePurpose: (purpose: ContentPurpose) => void;
 
   runGeneration: () => void;
+
+  addImportedPhotos: (photos: { uri: string; width: number; height: number }[]) => void;
+  removeAsset: (assetId: string) => void;
 
   toggleSelection: (assetId: string) => void;
   clearSelection: () => void;
@@ -203,6 +206,40 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({
       draft: { ...generated, catalog: defaultCatalogSelection(generated) },
       selection: [],
+    });
+  },
+
+  /** Adds finished photos the user made elsewhere to the current output set. */
+  addImportedPhotos: (photos) => {
+    const draft = get().draft;
+    if (!draft || photos.length === 0) return;
+
+    const imported = draft.assets.filter((asset) => asset.origin === 'imported').length;
+    const added = photos.map((photo, index) =>
+      buildImportedAsset(draft, photo, {
+        id: createId('imp'),
+        ordinal: imported + index + 1,
+      }),
+    );
+
+    set({ draft: { ...draft, assets: [...draft.assets, ...added] } });
+  },
+
+  /** Drops an output and every reference to it in the selection and catalog. */
+  removeAsset: (assetId) => {
+    const { draft, selection } = get();
+    if (!draft) return;
+
+    set({
+      draft: {
+        ...draft,
+        assets: draft.assets.filter((asset) => asset.id !== assetId),
+        catalog: {
+          ...draft.catalog,
+          imageIds: draft.catalog.imageIds.filter((imageId) => imageId !== `asset:${assetId}`),
+        },
+      },
+      selection: selection.filter((id) => id !== assetId),
     });
   },
 

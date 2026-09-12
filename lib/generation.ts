@@ -356,6 +356,7 @@ export function describeLook(asset: GeneratedAsset): string {
 
 /** Where an output's imagery came from, e.g. "Front upload · reused for Back view". */
 export function describeSource(asset: GeneratedAsset): string {
+  if (asset.origin === 'imported') return 'Your own photo, kept exactly as imported';
   if (!asset.sourceUri) return 'No upload available — placeholder imagery';
 
   const base = `${SLOT_LABEL[asset.sourceSlot]} upload`;
@@ -382,6 +383,7 @@ export function buildAssets(project: Project): GeneratedAsset[] {
       title: config.title,
       variation: config.variation,
       category: config.category,
+      origin: 'generated',
       sourceUri: photo?.uri ?? null,
       sourceSlot: photo?.slot ?? config.slot,
       requestedSlot: config.slot,
@@ -410,6 +412,50 @@ export function buildAssets(project: Project): GeneratedAsset[] {
   });
 }
 
+/**
+ * Wraps a finished photo the user imported from another tool as a project
+ * output. Nothing is composited over it — no colorway tint, staging, backdrop
+ * or lighting pass — so it travels through review, export and the catalog
+ * exactly as supplied, alongside the generated frames.
+ */
+export function buildImportedAsset(
+  project: Project,
+  photo: { uri: string; width: number; height: number },
+  meta: { id: string; ordinal: number },
+): GeneratedAsset {
+  return {
+    id: meta.id,
+    title: `Imported photo ${meta.ordinal}`,
+    variation: 'front',
+    category: 'ecommerce',
+    origin: 'imported',
+    sourceUri: photo.uri,
+    sourceSlot: 'front',
+    requestedSlot: 'front',
+    isDerived: false,
+    model: project.style.model,
+    visualStyle: project.style.visualStyle,
+    background: project.style.background,
+    scene: null,
+    staged: false,
+    worn: false,
+    colorName: '',
+    colorHex: hexForColorName(''),
+    spec: describeGarment(project.product),
+    zoom: 1,
+    baseZoom: 1,
+    focusY: 0.5,
+    inset: 0,
+    take: 1,
+    lighting: 'balanced',
+    enhanced: false,
+    shadow: false,
+    aspect: photo.width > 0 && photo.height > 0 ? photo.width / photo.height : 3 / 4,
+    isFavorite: false,
+    isApproved: false,
+  };
+}
+
 /** Image the output is rendered from: the user's upload, or curated fallback. */
 export function assetSource(asset: GeneratedAsset): ImageSourcePropType {
   if (asset.sourceUri) return { uri: asset.sourceUri };
@@ -418,12 +464,14 @@ export function assetSource(asset: GeneratedAsset): ImageSourcePropType {
 
 /** Recolor layers applied to the garment itself. */
 export function garmentLayers(asset: GeneratedAsset): ImageLayer[] {
-  if (!asset.colorName) return [];
+  if (asset.origin === 'imported' || !asset.colorName) return [];
   return colorwayLayers(asset.colorHex);
 }
 
 /** Lighting and enhancement layers applied over the whole frame. */
 export function treatmentLayers(asset: GeneratedAsset): ImageLayer[] {
+  if (asset.origin === 'imported') return [];
+
   const layers: ImageLayer[] = [];
 
   if (asset.lighting === 'soft') {

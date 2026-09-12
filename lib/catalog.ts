@@ -67,7 +67,8 @@ export function catalogImages(project: Project): CatalogImage[] {
     id: `asset:${asset.id}`,
     view: viewForAsset(asset),
     label: asset.title,
-    origin: 'generated',
+    // An imported asset is one of the user's own finished photos.
+    origin: asset.origin === 'imported' ? 'photo' : 'generated',
     source: assetSource(asset),
     aspect: asset.aspect,
     overlays: [...garmentLayers(asset), ...treatmentLayers(asset)],

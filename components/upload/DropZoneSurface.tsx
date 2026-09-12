@@ -10,10 +10,20 @@ type DropZoneSurfaceProps = {
   isActive?: boolean;
   onBrowse: () => void;
   isDisabled?: boolean;
+  title?: string;
+  hint?: string;
+  actionLabel?: string;
 };
 
 /** Shared visual for the native and web drop zones. */
-export function DropZoneSurface({ isActive, onBrowse, isDisabled }: DropZoneSurfaceProps) {
+export function DropZoneSurface({
+  isActive,
+  onBrowse,
+  isDisabled,
+  title = 'Drag & drop your images here',
+  hint = 'JPG or PNG · up to 3 photos',
+  actionLabel = 'Browse Files',
+}: DropZoneSurfaceProps) {
   return (
     <View
       className={cn(
@@ -27,14 +37,12 @@ export function DropZoneSurface({ isActive, onBrowse, isDisabled }: DropZoneSurf
       </View>
 
       <View className="gap-1.5">
-        <Text className="font-display-medium text-foreground text-center text-[19px]">
-          Drag &amp; drop your images here
-        </Text>
-        <Text className="text-muted text-center text-[13px]">JPG or PNG · up to 3 photos</Text>
+        <Text className="font-display-medium text-foreground text-center text-[19px]">{title}</Text>
+        <Text className="text-muted text-center text-[13px]">{hint}</Text>
       </View>
 
       <SecondaryButton
-        label="Browse Files"
+        label={actionLabel}
         onPress={onBrowse}
         isDisabled={isDisabled}
         className="px-7"

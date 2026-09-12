@@ -18,7 +18,14 @@ function readImage(file: File): Promise<PickedPhoto> {
 }
 
 /** Web: real drag-and-drop on top of the shared drop zone visual. */
-export function DropZone({ onBrowse, onDropFiles, isDisabled }: DropZoneProps) {
+export function DropZone({
+  onBrowse,
+  onDropFiles,
+  isDisabled,
+  title,
+  hint,
+  actionLabel,
+}: DropZoneProps) {
   const [isActive, setIsActive] = useState(false);
 
   return (
@@ -42,7 +49,14 @@ export function DropZone({ onBrowse, onDropFiles, isDisabled }: DropZoneProps) {
         void Promise.all(files.map(readImage)).then(onDropFiles);
       }}
     >
-      <DropZoneSurface isActive={isActive} onBrowse={onBrowse} isDisabled={isDisabled} />
+      <DropZoneSurface
+        isActive={isActive}
+        onBrowse={onBrowse}
+        isDisabled={isDisabled}
+        title={title}
+        hint={hint}
+        actionLabel={actionLabel}
+      />
     </div>
   );
 }

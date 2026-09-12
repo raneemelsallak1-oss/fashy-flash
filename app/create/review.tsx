@@ -9,6 +9,7 @@ import { FlowHeader } from '@/components/flow/FlowHeader';
 import { NoDraft } from '@/components/flow/NoDraft';
 import { AssetTile } from '@/components/review/AssetTile';
 import { FilterTabs, type AssetFilter } from '@/components/review/FilterTabs';
+import { ImportPhotos } from '@/components/review/ImportPhotos';
 import { PrimaryButton } from '@/components/ui/ActionButton';
 import { FooterBar } from '@/components/ui/FooterBar';
 import { ScreenTitle } from '@/components/ui/ScreenTitle';
@@ -21,6 +22,7 @@ export default function ReviewScreen() {
   const toggleSelection = useAppStore((state) => state.toggleSelection);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
   const approveSelected = useAppStore((state) => state.approveSelected);
+  const addImportedPhotos = useAppStore((state) => state.addImportedPhotos);
   const { width } = useWindowDimensions();
   const [filter, setFilter] = useState<AssetFilter>('all');
 
@@ -29,6 +31,8 @@ export default function ReviewScreen() {
   const assets = draft.assets;
   const visible = filter === 'all' ? assets : assets.filter((asset) => asset.category === filter);
   const tileWidth = (Math.min(width, 560) - 40 - 10) / 2;
+  const importedCount = assets.filter((asset) => asset.origin === 'imported').length;
+  const generatedCount = assets.length - importedCount;
 
   const approveAndContinue = () => {
     approveSelected();
@@ -47,7 +51,7 @@ export default function ReviewScreen() {
         <ScreenTitle
           eyebrow="Step five"
           title="Your generated content"
-          support={`${assets.length} visuals built from your photos and settings. Tap any image to preview and refine it.`}
+          support={`${generatedCount} visuals built from your photos and settings. Tap any image to preview and refine it.`}
         />
 
         <ConfigChips project={draft} />
@@ -77,6 +81,8 @@ export default function ReviewScreen() {
             </Text>
           </View>
         ) : null}
+
+        <ImportPhotos count={importedCount} onAdd={addImportedPhotos} />
       </ScrollView>
 
       <FooterBar>

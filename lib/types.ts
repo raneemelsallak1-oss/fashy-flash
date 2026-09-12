@@ -41,6 +41,12 @@ export type StyleSelection = {
 export type AssetCategory = 'ecommerce' | 'social' | 'catalog';
 export type Lighting = 'soft' | 'balanced' | 'bright';
 
+/**
+ * Where an output came from: built by the simulated generation pass, or a
+ * finished photo the user imported from another tool.
+ */
+export type AssetOrigin = 'generated' | 'imported';
+
 /** Key into the curated fashion image catalog in lib/gallery.ts. */
 export type GalleryKey =
   | 'studio'
@@ -73,6 +79,8 @@ export type GeneratedAsset = {
   title: string;
   variation: OutputVariation;
   category: AssetCategory;
+  /** Imported photos are shown exactly as supplied — no staging or treatment. */
+  origin: AssetOrigin;
   /** Uploaded garment photo this output was rendered from. */
   sourceUri: string | null;
   /** Tag of the upload that was used. */
