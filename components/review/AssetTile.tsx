@@ -1,10 +1,10 @@
 import { View } from 'react-native';
-import { Text } from 'heroui-native';
-import { Check, Heart } from 'lucide-react-native';
+import { Spinner, Text } from 'heroui-native';
+import { Check, Heart, Sparkles } from 'lucide-react-native';
 
 import { AssetImage } from '@/components/ui/AssetImage';
 import { Tappable } from '@/components/ui/Tappable';
-import { VARIATION_LABEL } from '@/lib/generation';
+import { hasOnModelRender, VARIATION_LABEL } from '@/lib/generation';
 import { palette } from '@/lib/theme';
 import type { GeneratedAsset } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -32,6 +32,9 @@ export function AssetTile({
   onToggleSelect,
   onToggleFavorite,
 }: AssetTileProps) {
+  const isRendering = asset.renderStatus === 'pending';
+  const isOnModel = hasOnModelRender(asset);
+
   return (
     <View style={{ width }} className="gap-2">
       {/* The card and its overlay controls are siblings so no pressable nests
@@ -49,6 +52,24 @@ export function AssetTile({
           scaleTo={0.98}
         >
           <AssetImage asset={asset} width={width - 2} aspect={3 / 4} rounded="rounded-[18px]" />
+
+          {isRendering ? (
+            <View className="bg-ivory/80 absolute inset-0 items-center justify-center gap-2">
+              <Spinner color={palette.blush} />
+              <Text className="text-charcoal-soft text-[10px] tracking-[1.2px] uppercase">
+                On a model
+              </Text>
+            </View>
+          ) : null}
+
+          {isOnModel && !asset.isApproved ? (
+            <View className="bg-ivory/90 absolute bottom-2 left-2 flex-row items-center gap-1 rounded-full px-2 py-1">
+              <Sparkles color={palette.blush} size={10} />
+              <Text className="text-charcoal-soft text-[10px] tracking-[1.2px] uppercase">
+                On model
+              </Text>
+            </View>
+          ) : null}
 
           {asset.isApproved ? (
             <View className="bg-charcoal/85 absolute bottom-2 left-2 rounded-full px-2.5 py-1">
@@ -99,7 +120,9 @@ export function AssetTile({
         </Text>
         <Text className="text-foreground text-[13px] leading-[17px]">{asset.title}</Text>
         <Text className="text-muted text-[11px]" numberOfLines={1}>
-          {asset.spec || CATEGORY_LABEL[asset.category]}
+          {asset.renderStatus === 'failed'
+            ? 'Preview — the render did not arrive'
+            : asset.spec || CATEGORY_LABEL[asset.category]}
         </Text>
       </View>
     </View>

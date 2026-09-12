@@ -1,7 +1,7 @@
 import type { ImageSourcePropType } from 'react-native';
 
 import { hexForColorName, hexForColorwayId, type ImageLayer } from '@/lib/color';
-import { assetSource, garmentLayers, treatmentLayers } from '@/lib/generation';
+import { finalSource, garmentLayers, hasOnModelRender, treatmentLayers } from '@/lib/generation';
 import type {
   CatalogSelection,
   GeneratedAsset,
@@ -69,9 +69,10 @@ export function catalogImages(project: Project): CatalogImage[] {
     label: asset.title,
     // An imported asset is one of the user's own finished photos.
     origin: asset.origin === 'imported' ? 'photo' : 'generated',
-    source: assetSource(asset),
+    source: finalSource(asset),
     aspect: asset.aspect,
-    overlays: [...garmentLayers(asset), ...treatmentLayers(asset)],
+    // A real on-model photograph is printed as it is; nothing is painted over it.
+    overlays: hasOnModelRender(asset) ? [] : [...garmentLayers(asset), ...treatmentLayers(asset)],
   }));
 
   const uploads: CatalogImage[] = project.photos.map((photo, index) => ({

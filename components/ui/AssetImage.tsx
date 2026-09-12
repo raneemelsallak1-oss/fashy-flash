@@ -5,7 +5,7 @@ import { FILL, GarmentFill, Layers, percent } from '@/components/ui/GarmentFill'
 import { LinearGradient } from '@/components/ui/primitives/LinearGradient';
 import { WornFigure } from '@/components/ui/WornFigure';
 import { imageForKind } from '@/lib/gallery';
-import { assetSource, backdropColors, treatmentLayers } from '@/lib/generation';
+import { assetSource, backdropColors, hasOnModelRender, treatmentLayers } from '@/lib/generation';
 import type { GeneratedAsset } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -43,14 +43,18 @@ export function AssetImage({
   const scene = asset.scene ? imageForKind(asset.scene) : null;
 
   // An imported photo is already finished: fill the frame with the file itself
-  // and composite nothing over it.
-  if (asset.origin === 'imported') {
+  // and composite nothing over it. A finished on-model render is treated the
+  // same way — it is a real photograph, not something to paint over.
+  if (asset.origin === 'imported' || hasOnModelRender(asset)) {
+    const source =
+      hasOnModelRender(asset) && asset.renderUrl ? { uri: asset.renderUrl } : assetSource(asset);
+
     return (
       <View
         className={cn('bg-sand-soft overflow-hidden', rounded, className)}
         style={{ width, aspectRatio: aspect ?? asset.aspect }}
       >
-        <Image source={assetSource(asset)} style={FILL} contentFit="cover" transition={220} />
+        <Image source={source} style={FILL} contentFit="cover" transition={220} />
       </View>
     );
   }

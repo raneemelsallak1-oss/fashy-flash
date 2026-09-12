@@ -6,6 +6,8 @@ export type GarmentPhoto = {
   slot: PhotoSlot;
   width: number;
   height: number;
+  /** Public URL once the photo is in storage, so the renderer can fetch it. */
+  remoteUrl: string | null;
 };
 
 export type ProductData = {
@@ -84,6 +86,15 @@ export type AppliedRevision = {
  */
 export type AssetOrigin = 'generated' | 'imported';
 
+/**
+ * State of the real on-model render for an output.
+ * - `none`: this output is not rendered on a model (garment-only, or imported).
+ * - `pending`: submitted to the renderer, waiting for the photograph.
+ * - `ready`: the render is stored and shown as the output.
+ * - `failed`: the renderer could not deliver it; the composite preview stands in.
+ */
+export type RenderStatus = 'none' | 'pending' | 'ready' | 'failed';
+
 /** Key into the curated fashion image catalog in lib/gallery.ts. */
 export type GalleryKey =
   | 'studio'
@@ -154,6 +165,13 @@ export type GeneratedAsset = {
   shadow: boolean;
   /** width / height */
   aspect: number;
+  renderStatus: RenderStatus;
+  /** Stored URL of the photograph the renderer produced. */
+  renderUrl: string | null;
+  /** Why the render did not arrive, ready to show the user. */
+  renderError: string | null;
+  /** Seed sent to the renderer; a new one asks for a different photograph. */
+  renderSeed: number;
   isFavorite: boolean;
   isApproved: boolean;
 };

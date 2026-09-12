@@ -22,7 +22,7 @@ import {
   groupCatalogImages,
 } from '@/lib/catalog';
 import { downloadAssetFiles, downloadCatalogPdf } from '@/lib/download';
-import { assetSource } from '@/lib/generation';
+import { finalSource } from '@/lib/generation';
 import { EXPORT_FORMATS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
@@ -78,7 +78,7 @@ export default function ExportScreen() {
     const slug = slugify(draft.product.name || 'fashy-flash');
     const files = chosen.flatMap((asset) =>
       imageFormats.map((format) => ({
-        source: assetSource(asset),
+        source: finalSource(asset),
         fileName: `${slug}-${slugify(asset.title)}-${format}.png`,
       })),
     );

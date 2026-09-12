@@ -6,9 +6,11 @@ import {
   buildAssets,
   buildImportedAsset,
   EMPTY_TREATMENT,
+  needsOnModelRender,
   nextTake,
 } from '@/lib/generation';
 import { requestRevision } from '@/lib/revision';
+import { newRenderSeed, renderOnModel } from '@/lib/tryon';
 import type {
   AppliedRevision,
   ContentPurpose,
@@ -20,6 +22,7 @@ import type {
   Project,
   StyleSelection,
 } from '@/lib/types';
+import { uploadGarmentPhoto } from '@/lib/uploads';
 
 const EMPTY_PRODUCT: ProductData = {
   name: '',
@@ -58,6 +61,16 @@ type Draft = Project;
 /** Whether an AI revision request is in flight. */
 export type RevisionStatus = 'idle' | 'working';
 
+/** Progress of the on-model renders for the current output set. */
+export type RenderProgress = {
+  total: number;
+  done: number;
+  failed: number;
+  active: boolean;
+};
+
+const IDLE_RENDERS: RenderProgress = { total: 0, done: 0, failed: 0, active: false };
+
 type AppState = {
   projects: Project[];
   draft: Draft | null;
@@ -68,6 +81,8 @@ type AppState = {
   revisionError: string | null;
   /** The revision the current outputs were rebuilt from, if any. */
   lastRevision: AppliedRevision | null;
+  /** Shoot-wide on-model rendering progress. */
+  renderProgress: RenderProgress;
 
   startProject: () => void;
   discardDraft: () => void;
@@ -83,6 +98,7 @@ type AppState = {
   togglePurpose: (purpose: ContentPurpose) => void;
 
   runGeneration: () => void;
+  runRenders: () => Promise<void>;
 
   submitRevision: (request: string) => Promise<void>;
   dismissRevision: () => void;
@@ -95,6 +111,8 @@ type AppState = {
   toggleFavorite: (assetId: string) => void;
   updateAsset: (assetId: string, patch: Partial<GeneratedAsset>) => void;
   regenerateAsset: (assetId: string) => void;
+  rerenderAsset: (assetId: string) => Promise<void>;
+  restyleAsset: (assetId: string, patch: Partial<GeneratedAsset>) => Promise<void>;
   approveSelected: () => void;
 
   setExportFormats: (formats: ExportFormatId[]) => void;
@@ -128,17 +146,122 @@ function mapAssets(
  * Plans the generated outputs for a draft and applies its shoot-wide treatment.
  * Imported photos are carried over untouched, and favorites survive a rebuild
  * because generated asset ids are derived from the project id and plan position.
+ * `keepRenders` carries finished on-model photographs over as well, for a
+ * rebuild that did not change how anything is presented.
  */
-function rebuildAssets(draft: Draft): GeneratedAsset[] {
+function rebuildAssets(draft: Draft, keepRenders = false): GeneratedAsset[] {
   const favorites = new Set(
     draft.assets.filter((asset) => asset.isFavorite).map((asset) => asset.id),
   );
-  const imported = draft.assets.filter((asset) => asset.origin === 'imported');
-  const generated = applyTreatment(buildAssets(draft), draft.treatment).map((asset) =>
-    favorites.has(asset.id) ? { ...asset, isFavorite: true } : asset,
+  const renders = new Map(
+    draft.assets
+      .filter((asset) => asset.renderStatus === 'ready' && asset.renderUrl !== null)
+      .map((asset) => [asset.id, asset]),
   );
+  const imported = draft.assets.filter((asset) => asset.origin === 'imported');
+
+  const generated = applyTreatment(buildAssets(draft), draft.treatment).map((asset) => {
+    const kept = keepRenders ? renders.get(asset.id) : undefined;
+
+    return {
+      ...asset,
+      isFavorite: favorites.has(asset.id) ? true : asset.isFavorite,
+      ...(kept
+        ? {
+            renderStatus: kept.renderStatus,
+            renderUrl: kept.renderUrl,
+            renderError: null,
+            renderSeed: kept.renderSeed,
+            take: kept.take,
+          }
+        : {}),
+    };
+  });
 
   return [...generated, ...imported];
+}
+
+type Getter = () => AppState;
+type Setter = (partial: Partial<AppState>) => void;
+
+/** Writes a patch onto one asset, but only while the same draft is open. */
+function patchAsset(
+  get: Getter,
+  set: Setter,
+  projectId: string,
+  assetId: string,
+  patch: Partial<GeneratedAsset>,
+) {
+  const draft = get().draft;
+  if (!draft || draft.id !== projectId) return;
+  set({ draft: mapAssets(draft, assetId, (asset) => ({ ...asset, ...patch })) });
+}
+
+/**
+ * Renders one output on a real model: the garment photo goes to storage (once
+ * per photo), the try-on service photographs it in the look this output was
+ * planned in, and the stored image is written back onto the asset. A failure
+ * leaves the composite preview in place with a message the user can read.
+ */
+async function renderAsset(assetId: string, get: Getter, set: Setter): Promise<boolean> {
+  const draft = get().draft;
+  if (!draft) return false;
+
+  const projectId = draft.id;
+  const asset = draft.assets.find((item) => item.id === assetId);
+  if (!asset?.sourceUri) return false;
+
+  const photo = draft.photos.find((item) => item.uri === asset.sourceUri);
+  if (!photo) {
+    patchAsset(get, set, projectId, assetId, {
+      renderStatus: 'failed',
+      renderError: 'The garment photo this image was built from is no longer available.',
+    });
+    return false;
+  }
+
+  try {
+    const productImage = photo.remoteUrl ?? (await uploadGarmentPhoto(projectId, photo));
+
+    if (photo.remoteUrl !== productImage) {
+      const withUrl = get().draft;
+      if (withUrl && withUrl.id === projectId) {
+        set({
+          draft: {
+            ...withUrl,
+            photos: withUrl.photos.map((item) =>
+              item.id === photo.id ? { ...item, remoteUrl: productImage } : item,
+            ),
+          },
+        });
+      }
+    }
+
+    const latest = get().draft;
+    const target = latest?.assets.find((item) => item.id === assetId);
+    if (!latest || latest.id !== projectId || !target) return false;
+
+    const imageUrl = await renderOnModel({
+      asset: target,
+      productImage,
+      product: latest.product,
+      storeAs: `${projectId}/${assetId}-t${target.take}.jpg`,
+    });
+
+    patchAsset(get, set, projectId, assetId, {
+      renderStatus: 'ready',
+      renderUrl: imageUrl,
+      renderError: null,
+    });
+    return true;
+  } catch (error) {
+    patchAsset(get, set, projectId, assetId, {
+      renderStatus: 'failed',
+      renderError:
+        error instanceof Error ? error.message : 'The renderer could not finish this image.',
+    });
+    return false;
+  }
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -149,6 +272,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   revisionStatus: 'idle',
   revisionError: null,
   lastRevision: null,
+  renderProgress: { ...IDLE_RENDERS },
 
   startProject: () => {
     set({
@@ -170,6 +294,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       revisionStatus: 'idle',
       revisionError: null,
       lastRevision: null,
+      renderProgress: { ...IDLE_RENDERS },
     });
   },
 
@@ -181,6 +306,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       revisionStatus: 'idle',
       revisionError: null,
       lastRevision: null,
+      renderProgress: { ...IDLE_RENDERS },
     }),
 
   addPhotos: (photos) => {
@@ -193,6 +319,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       width: photo.width,
       height: photo.height,
       slot: nextSlot(draft.photos, index),
+      remoteUrl: null,
     }));
 
     set({ draft: { ...draft, photos: [...draft.photos, ...added] } });
@@ -259,7 +386,62 @@ export const useAppStore = create<AppState>((set, get) => ({
       selection: [],
       revisionError: null,
       lastRevision: null,
+      renderProgress: { ...IDLE_RENDERS },
     });
+  },
+
+  /**
+   * Photographs every output that is presented on a model, two at a time so the
+   * first images land quickly without flooding the renderer. Outputs that show
+   * the garment on its own are composed locally and never sent.
+   */
+  runRenders: async () => {
+    const draft = get().draft;
+    if (!draft) return;
+
+    const queue = draft.assets.filter(needsOnModelRender);
+    if (queue.length === 0) {
+      set({ renderProgress: { ...IDLE_RENDERS } });
+      return;
+    }
+
+    const projectId = draft.id;
+    set({
+      draft: {
+        ...draft,
+        assets: draft.assets.map((asset) =>
+          needsOnModelRender(asset)
+            ? { ...asset, renderStatus: 'pending', renderError: null }
+            : asset,
+        ),
+      },
+      renderProgress: { total: queue.length, done: 0, failed: 0, active: true },
+    });
+
+    const pending = queue.map((asset) => asset.id);
+
+    const worker = async (): Promise<void> => {
+      for (;;) {
+        const assetId = pending.shift();
+        if (assetId === undefined) return;
+        if (get().draft?.id !== projectId) return;
+
+        const rendered = await renderAsset(assetId, get, set);
+
+        const progress = get().renderProgress;
+        set({
+          renderProgress: {
+            ...progress,
+            done: progress.done + 1,
+            failed: progress.failed + (rendered ? 0 : 1),
+          },
+        });
+      }
+    };
+
+    await Promise.all([worker(), worker()]);
+
+    set({ renderProgress: { ...get().renderProgress, active: false } });
   },
 
   /**
@@ -302,7 +484,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         revisions: [revision, ...current.revisions],
       };
 
-      const assets = rebuildAssets(revised);
+      const assets = rebuildAssets(revised, result.changes.length === 0);
       const rebuilt: Draft = { ...revised, assets };
       const ids = new Set(assets.map((asset) => asset.id));
 
@@ -313,6 +495,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         revisionError: null,
         lastRevision: revision,
       });
+
+      // The revised look has to be photographed again on the model.
+      void get().runRenders();
     } catch (error) {
       set({
         revisionStatus: 'idle',
@@ -392,6 +577,60 @@ export const useAppStore = create<AppState>((set, get) => ({
         ...nextTake(asset),
       })),
     });
+  },
+
+  /**
+   * Asks the renderer for another photograph of the same look: a new seed and a
+   * fresh take, so the model, pose and framing differ while the garment, colour
+   * and staging stay as configured.
+   */
+  rerenderAsset: async (assetId) => {
+    const draft = get().draft;
+    const asset = draft?.assets.find((item) => item.id === assetId);
+    if (!draft || !asset || !asset.worn) return;
+
+    set({
+      draft: mapAssets(draft, assetId, (item) => ({
+        ...item,
+        ...nextTake(item),
+        renderStatus: 'pending',
+        renderUrl: null,
+        renderError: null,
+        renderSeed: newRenderSeed(),
+      })),
+    });
+
+    await renderAsset(assetId, get, set);
+  },
+
+  /**
+   * Changes how one output is presented and, when it is shown on a model, has
+   * the renderer photograph it again in the new look.
+   */
+  restyleAsset: async (assetId, patch) => {
+    const draft = get().draft;
+    const asset = draft?.assets.find((item) => item.id === assetId);
+    if (!draft || !asset) return;
+
+    const worn = asset.worn && asset.origin === 'generated';
+
+    set({
+      draft: mapAssets(draft, assetId, (item) => ({
+        ...item,
+        ...patch,
+        ...(worn
+          ? {
+              renderStatus: 'pending' as const,
+              renderUrl: null,
+              renderError: null,
+              isApproved: false,
+            }
+          : {}),
+      })),
+    });
+
+    if (!worn) return;
+    await renderAsset(assetId, get, set);
   },
 
   approveSelected: () => {

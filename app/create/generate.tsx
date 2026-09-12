@@ -10,17 +10,20 @@ import { FlowHeader } from '@/components/flow/FlowHeader';
 import { NoDraft } from '@/components/flow/NoDraft';
 import { GenerationVisual } from '@/components/generate/GenerationVisual';
 import { ProgressBar } from '@/components/generate/ProgressBar';
+import { SecondaryButton } from '@/components/ui/ActionButton';
 import {
   BACKGROUND_LABEL,
   describeGarment,
   MODEL_LABEL,
   plannedOutputCount,
+  plannedRenderCount,
   PURPOSE_LABEL,
   SLOT_LABEL,
   STYLE_LABEL,
 } from '@/lib/generation';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
+import { CREDITS_PER_RENDER } from '@/lib/tryon';
 import type { Project } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -33,6 +36,7 @@ function stagesFor(draft: Project): Stage[] {
   const { photos, product, style } = draft;
   const tags = photos.map((photo) => SLOT_LABEL[photo.slot]).join(', ');
   const outputs = plannedOutputCount(style);
+  const renders = plannedRenderCount(style);
 
   return [
     {
@@ -48,7 +52,10 @@ function stagesFor(draft: Project): Stage[] {
     },
     {
       label: 'Creating model & styling',
-      detail: `${MODEL_LABEL[style.model]} · ${STYLE_LABEL[style.visualStyle]}`,
+      detail:
+        renders > 0
+          ? `${MODEL_LABEL[style.model]} · ${renders} on-model render${renders === 1 ? '' : 's'}`
+          : `${MODEL_LABEL[style.model]} · ${STYLE_LABEL[style.visualStyle]}`,
     },
     { label: 'Creating backgrounds', detail: BACKGROUND_LABEL[style.background] },
     { label: 'Enhancing images', detail: 'Fabric texture, lighting and shadow' },
@@ -65,14 +72,24 @@ function stagesFor(draft: Project): Stage[] {
 export default function GenerateScreen() {
   const draft = useAppStore((state) => state.draft);
   const runGeneration = useAppStore((state) => state.runGeneration);
+  const runRenders = useAppStore((state) => state.runRenders);
+  const renderProgress = useAppStore((state) => state.renderProgress);
   const { width } = useWindowDimensions();
   const [stage, setStage] = useState(0);
-  const hasFinished = useRef(false);
+  const hasStarted = useRef(false);
+  const hasLeft = useRef(false);
   const total = 6;
   const hasDraft = draft !== null;
 
+  const openResults = () => {
+    if (hasLeft.current) return;
+    hasLeft.current = true;
+    router.replace('/create/review');
+  };
+
   // Generation starts on its own as soon as this screen opens: the stages run,
-  // the outputs are built from the draft, then the results screen takes over.
+  // the outputs are built from the draft, the model images are photographed by
+  // the try-on service, then the results screen takes over.
   useEffect(() => {
     if (!hasDraft) return undefined;
 
@@ -81,12 +98,18 @@ export default function GenerateScreen() {
       return () => clearTimeout(timer);
     }
 
-    if (hasFinished.current) return undefined;
-    hasFinished.current = true;
+    if (hasStarted.current) return undefined;
+    hasStarted.current = true;
     runGeneration();
-    router.replace('/create/review');
+
+    void runRenders().then(() => {
+      if (hasLeft.current) return;
+      hasLeft.current = true;
+      router.replace('/create/review');
+    });
+
     return undefined;
-  }, [hasDraft, runGeneration, stage, total]);
+  }, [hasDraft, runGeneration, runRenders, stage, total]);
 
   if (!draft) return <NoDraft />;
 
@@ -94,6 +117,11 @@ export default function GenerateScreen() {
   const done = Math.min(stage, stages.length);
   const visualSize = Math.min(width - 190, 168);
   const outputs = plannedOutputCount(draft.style);
+  const plannedRenders = plannedRenderCount(draft.style);
+
+  const isRendering = done === stages.length && plannedRenders > 0;
+  const renderShare = renderProgress.total > 0 ? renderProgress.done / renderProgress.total : 0;
+  const progress = isRendering ? renderShare : done / stages.length;
 
   return (
     <View className="bg-ivory flex-1">
@@ -110,7 +138,7 @@ export default function GenerateScreen() {
 
         <View className="gap-2.5">
           <Text className="font-display-medium text-foreground text-center text-[26px] leading-[32px]">
-            Creating your fashion content…
+            {isRendering ? 'Photographing your piece…' : 'Creating your fashion content…'}
           </Text>
           <Text className="text-muted text-center text-[13px]">
             {draft.product.name.trim() || 'Your garment'} · {outputs} outputs from your photos
@@ -118,14 +146,40 @@ export default function GenerateScreen() {
         </View>
 
         <View className="gap-2.5">
-          <ProgressBar value={done / stages.length} />
+          <ProgressBar value={progress} />
           <View className="flex-row justify-between">
-            <Text className="text-muted text-[11px] tracking-[1.6px] uppercase">Generating</Text>
+            <Text className="text-muted text-[11px] tracking-[1.6px] uppercase">
+              {isRendering ? 'Rendering' : 'Generating'}
+            </Text>
             <Text className="text-charcoal-soft text-[11px] tracking-[1.6px] uppercase">
-              {Math.round((done / stages.length) * 100)}%
+              {Math.round(progress * 100)}%
             </Text>
           </View>
         </View>
+
+        {isRendering ? (
+          <Animated.View
+            entering={FadeIn.duration(240)}
+            className="border-border bg-surface gap-3.5 rounded-[22px] border px-4 py-4"
+          >
+            <View className="flex-row items-center gap-3">
+              <Spinner color={palette.blush} />
+              <View className="flex-1 gap-0.5">
+                <Text className="text-foreground text-[14px]">
+                  {renderProgress.total > 0
+                    ? `On a model — ${Math.min(renderProgress.done + 1, renderProgress.total)} of ${renderProgress.total}`
+                    : 'Uploading your garment photos'}
+                </Text>
+                <Text className="text-muted text-[11px]">
+                  Your garment is being worn by a generated model ·{' '}
+                  {plannedRenders * CREDITS_PER_RENDER} render credits
+                </Text>
+              </View>
+            </View>
+
+            <SecondaryButton label="Skip to results" onPress={openResults} />
+          </Animated.View>
+        ) : null}
 
         <ConfigSummary project={draft} />
 

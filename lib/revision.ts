@@ -1,4 +1,4 @@
-import { bilt } from '@/lib/bilt';
+import { invokeFunction } from '@/lib/functions';
 import { EMPTY_TREATMENT } from '@/lib/generation';
 import type {
   BackgroundChoice,
@@ -169,31 +169,6 @@ function readChanges(value: unknown): RevisionChange[] {
   return changes;
 }
 
-/** Pulls the human-readable message out of a function error response. */
-async function messageFromError(error: unknown): Promise<string> {
-  const context = isRecord(error) ? error.context : null;
-
-  const jsonFn = isRecord(context) ? context.json : undefined;
-
-  if (typeof jsonFn === 'function') {
-    try {
-      const body: unknown = await jsonFn.call(context);
-      if (isRecord(body)) {
-        const message = readString(body.message).trim();
-        if (message.length > 0) return message;
-      }
-    } catch {
-      // The error body was not JSON — fall back to the generic message.
-    }
-  }
-
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message.includes('Edge Function') ? GENERIC_FAILURE : error.message;
-  }
-
-  return GENERIC_FAILURE;
-}
-
 /**
  * Sends the revision text plus the current settings to the backend, which asks
  * the AI service what to change and returns the merged instructions. Throws an
@@ -201,17 +176,7 @@ async function messageFromError(error: unknown): Promise<string> {
  */
 export async function requestRevision(project: Project, revision: string): Promise<RevisionResult> {
   const payload = buildRevisionPayload(project, revision);
-
-  const { data, error } = await bilt.functions.invoke(FUNCTION_NAME, { body: payload });
-  if (error) throw new Error(await messageFromError(error));
-
-  if (!isRecord(data)) throw new Error(GENERIC_FAILURE);
-
-  if (data.ok !== true) {
-    const message = readString(data.message).trim();
-    throw new Error(message.length > 0 ? message : GENERIC_FAILURE);
-  }
-
+  const data = await invokeFunction(FUNCTION_NAME, payload, GENERIC_FAILURE);
   const summary = readString(data.summary).trim();
 
   return {

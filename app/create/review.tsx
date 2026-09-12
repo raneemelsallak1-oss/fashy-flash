@@ -7,8 +7,8 @@ import {
   View,
 } from 'react-native';
 import { router } from 'expo-router';
-import { Text } from 'heroui-native';
-import { ArrowRight } from 'lucide-react-native';
+import { Spinner, Text } from 'heroui-native';
+import { ArrowRight, RefreshCw } from 'lucide-react-native';
 
 import { ConfigChips } from '@/components/flow/ConfigSummary';
 import { FlowHeader } from '@/components/flow/FlowHeader';
@@ -20,6 +20,7 @@ import { RevisionRequest } from '@/components/review/RevisionRequest';
 import { PrimaryButton } from '@/components/ui/ActionButton';
 import { FooterBar } from '@/components/ui/FooterBar';
 import { ScreenTitle } from '@/components/ui/ScreenTitle';
+import { Tappable } from '@/components/ui/Tappable';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
 
@@ -35,6 +36,8 @@ export default function ReviewScreen() {
   const lastRevision = useAppStore((state) => state.lastRevision);
   const submitRevision = useAppStore((state) => state.submitRevision);
   const dismissRevision = useAppStore((state) => state.dismissRevision);
+  const renderProgress = useAppStore((state) => state.renderProgress);
+  const runRenders = useAppStore((state) => state.runRenders);
   const { width } = useWindowDimensions();
   const [filter, setFilter] = useState<AssetFilter>('all');
 
@@ -46,6 +49,8 @@ export default function ReviewScreen() {
   const importedCount = assets.filter((asset) => asset.origin === 'imported').length;
   const generatedCount = assets.length - importedCount;
   const isRevising = revisionStatus === 'working';
+  const failedRenders = assets.filter((asset) => asset.renderStatus === 'failed').length;
+  const isRendering = renderProgress.active;
 
   const approveAndContinue = () => {
     approveSelected();
@@ -73,6 +78,36 @@ export default function ReviewScreen() {
           />
 
           <ConfigChips project={draft} />
+
+          {isRendering || failedRenders > 0 ? (
+            <View className="border-border bg-surface flex-row items-center gap-3 rounded-[20px] border px-4 py-3.5">
+              {isRendering ? <Spinner color={palette.blush} /> : null}
+
+              <View className="flex-1 gap-0.5">
+                <Text className="text-foreground text-[13px]">
+                  {isRendering
+                    ? `Rendering on a model — ${Math.min(renderProgress.done + 1, renderProgress.total)} of ${renderProgress.total}`
+                    : `${failedRenders} on-model image${failedRenders === 1 ? '' : 's'} did not arrive`}
+                </Text>
+                <Text className="text-muted text-[11px] leading-[16px]">
+                  {isRendering
+                    ? 'Each photo appears here as soon as it is ready.'
+                    : 'The composite preview is standing in. Try those renders again.'}
+                </Text>
+              </View>
+
+              {!isRendering ? (
+                <Tappable
+                  accessibilityRole="button"
+                  accessibilityLabel="Retry the on-model renders"
+                  onPress={() => void runRenders()}
+                  className="border-border bg-ivory h-9 w-9 items-center justify-center rounded-full border"
+                >
+                  <RefreshCw color={palette.charcoal} size={15} />
+                </Tappable>
+              ) : null}
+            </View>
+          ) : null}
 
           <FilterTabs value={filter} onChange={setFilter} />
 

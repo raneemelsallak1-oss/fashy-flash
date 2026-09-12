@@ -2,6 +2,7 @@ import type { ImageSourcePropType } from 'react-native';
 
 import { colorwayLayers, hexForColorName, type ImageLayer } from '@/lib/color';
 import { BACKGROUND_SCENE, imageForKind } from '@/lib/gallery';
+import { newRenderSeed } from '@/lib/tryon';
 import type {
   AssetCategory,
   BackgroundChoice,
@@ -362,6 +363,7 @@ export function describeSource(asset: GeneratedAsset): string {
   if (!asset.sourceUri) return 'No upload available — placeholder imagery';
 
   const base = `${SLOT_LABEL[asset.sourceSlot]} upload`;
+  if (hasOnModelRender(asset)) return `${base}, rendered on a model`;
   if (!asset.isDerived) return base;
   return `${base}, recropped for the ${VARIATION_LABEL[asset.variation].toLowerCase()}`;
 }
@@ -408,6 +410,10 @@ export function buildAssets(project: Project): GeneratedAsset[] {
       enhanced: false,
       shadow: config.staged,
       aspect: config.aspect,
+      renderStatus: config.worn ? 'pending' : 'none',
+      renderUrl: null,
+      renderError: null,
+      renderSeed: newRenderSeed(),
       isFavorite: false,
       isApproved: false,
     };
@@ -453,6 +459,10 @@ export function buildImportedAsset(
     enhanced: false,
     shadow: false,
     aspect: photo.width > 0 && photo.height > 0 ? photo.width / photo.height : 3 / 4,
+    renderStatus: 'none',
+    renderUrl: null,
+    renderError: null,
+    renderSeed: 0,
     isFavorite: false,
     isApproved: false,
   };
@@ -462,6 +472,53 @@ export function buildImportedAsset(
 export function assetSource(asset: GeneratedAsset): ImageSourcePropType {
   if (asset.sourceUri) return { uri: asset.sourceUri };
   return imageForKind(asset.variation === 'detail' ? 'detail' : 'product');
+}
+
+/** True when the try-on service delivered a real photograph for this output. */
+export function hasOnModelRender(asset: GeneratedAsset): boolean {
+  return asset.renderStatus === 'ready' && asset.renderUrl !== null;
+}
+
+/**
+ * Outputs presented on a model are photographed by the try-on service. An
+ * output still needs that render when it is worn, has a garment photo to work
+ * from, and no finished render yet.
+ */
+export function needsOnModelRender(asset: GeneratedAsset): boolean {
+  return (
+    asset.origin === 'generated' &&
+    asset.worn &&
+    asset.sourceUri !== null &&
+    asset.renderStatus !== 'ready'
+  );
+}
+
+/** How many outputs of a configuration are photographed on a model. */
+export function plannedRenderCount(style: StyleSelection): number {
+  return variationPlan(style).filter((config) => config.worn).length;
+}
+
+/**
+ * The image an output finally shows: the on-model photograph when the renderer
+ * delivered one, otherwise the garment photo the composite is built from.
+ */
+export function finalSource(asset: GeneratedAsset): ImageSourcePropType {
+  if (hasOnModelRender(asset) && asset.renderUrl) return { uri: asset.renderUrl };
+  return assetSource(asset);
+}
+
+/** One line naming how this output was produced. */
+export function describeRender(asset: GeneratedAsset): string {
+  switch (asset.renderStatus) {
+    case 'ready':
+      return 'Photographed on a model by the try-on service';
+    case 'pending':
+      return 'Rendering on a model…';
+    case 'failed':
+      return 'Composite preview — the render did not arrive';
+    default:
+      return 'Composed from your garment photo';
+  }
 }
 
 /** Recolor layers applied to the garment itself. */

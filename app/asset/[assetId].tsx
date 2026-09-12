@@ -12,6 +12,7 @@ import { Tappable } from '@/components/ui/Tappable';
 import { hexForColorName } from '@/lib/color';
 import {
   describeLook,
+  describeRender,
   describeSource,
   sceneForBackground,
   VARIATION_LABEL,
@@ -20,6 +21,7 @@ import { goBackOrReplace } from '@/lib/navigation';
 import { ASSET_CATEGORY_OPTIONS, BACKGROUND_OPTIONS, IMPORT_VIEW_OPTIONS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
+import { CREDITS_PER_RENDER } from '@/lib/tryon';
 import type { Lighting } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -80,21 +82,24 @@ export default function AssetPreviewScreen() {
   const draft = useAppStore((state) => state.draft);
   const updateAsset = useAppStore((state) => state.updateAsset);
   const regenerateAsset = useAppStore((state) => state.regenerateAsset);
+  const rerenderAsset = useAppStore((state) => state.rerenderAsset);
+  const restyleAsset = useAppStore((state) => state.restyleAsset);
   const toggleFavorite = useAppStore((state) => state.toggleFavorite);
   const removeAsset = useAppStore((state) => state.removeAsset);
   const { width } = useWindowDimensions();
   const [isRegenerating, setIsRegenerating] = useState(false);
 
   const asset = draft?.assets.find((item) => item.id === assetId);
+  const isOnModel = asset?.origin === 'generated' && asset.worn;
 
   useEffect(() => {
-    if (!isRegenerating || !asset) return undefined;
+    if (!isRegenerating || !asset || isOnModel) return undefined;
     const timer = setTimeout(() => {
       regenerateAsset(asset.id);
       setIsRegenerating(false);
     }, 1100);
     return () => clearTimeout(timer);
-  }, [asset, isRegenerating, regenerateAsset]);
+  }, [asset, isOnModel, isRegenerating, regenerateAsset]);
 
   if (!asset) {
     return (
@@ -110,6 +115,8 @@ export default function AssetPreviewScreen() {
   const contentWidth = Math.min(width, 560) - 40;
   const previewWidth = Math.min(contentWidth, 400 * asset.aspect);
   const isImported = asset.origin === 'imported';
+  const isRendering = asset.renderStatus === 'pending';
+  const isBusy = isRendering || isRegenerating;
 
   const infoRows: InfoRow[] = isImported
     ? [
@@ -120,6 +127,7 @@ export default function AssetPreviewScreen() {
     : [
         { label: 'Output', value: `${VARIATION_LABEL[asset.variation]} · Take ${asset.take}` },
         { label: 'Built from', value: describeSource(asset) },
+        ...(asset.worn ? [{ label: 'Rendered', value: describeRender(asset) }] : []),
         { label: 'Look', value: describeLook(asset) },
         {
           label: 'Colorway',
@@ -173,11 +181,11 @@ export default function AssetPreviewScreen() {
         <View className="items-center">
           <View className="relative">
             <AssetImage asset={asset} width={previewWidth} rounded="rounded-[24px]" />
-            {isRegenerating ? (
+            {isBusy ? (
               <View className="bg-ivory/80 absolute inset-0 items-center justify-center gap-3 rounded-[24px]">
                 <Spinner color={palette.blush} />
                 <Text className="text-charcoal-soft text-[12px] tracking-[1.4px] uppercase">
-                  Regenerating
+                  {isRendering ? 'Rendering on a model' : 'Regenerating'}
                 </Text>
               </View>
             ) : null}
@@ -250,7 +258,10 @@ export default function AssetPreviewScreen() {
         ) : (
           <>
             <View className="gap-3">
-              <SectionLabel label="Change background" />
+              <SectionLabel
+                label="Change background"
+                hint={isOnModel ? 'Photographs this image again on the model' : undefined}
+              />
               <View className="flex-row flex-wrap gap-2">
                 {BACKGROUND_OPTIONS.map((option) => (
                   <ControlPill
@@ -259,10 +270,16 @@ export default function AssetPreviewScreen() {
                     selected={asset.background === option.id}
                     onPress={() => {
                       const background = option.id;
-                      updateAsset(asset.id, {
+                      const patch = {
                         background,
                         scene: sceneForBackground(asset, background),
-                      });
+                      };
+
+                      if (isOnModel) {
+                        void restyleAsset(asset.id, patch);
+                        return;
+                      }
+                      updateAsset(asset.id, patch);
                     }}
                   />
                 ))}
@@ -277,33 +294,61 @@ export default function AssetPreviewScreen() {
                     key={option.id}
                     label={option.label}
                     selected={asset.lighting === option.id}
-                    onPress={() => updateAsset(asset.id, { lighting: option.id })}
+                    onPress={() => {
+                      if (isOnModel) {
+                        void restyleAsset(asset.id, { lighting: option.id });
+                        return;
+                      }
+                      updateAsset(asset.id, { lighting: option.id });
+                    }}
                   />
                 ))}
               </View>
             </View>
 
-            <View className="gap-2.5">
-              <ToggleRow
-                label="Enhance details"
-                hint="Deeper contrast and crisper fabric texture"
-                value={asset.enhanced}
-                onChange={(value) => updateAsset(asset.id, { enhanced: value })}
-              />
-              <ToggleRow
-                label="Shadow"
-                hint="Grounds the garment with a soft cast shadow"
-                value={asset.shadow}
-                onChange={(value) => updateAsset(asset.id, { shadow: value })}
-              />
-            </View>
+            {isOnModel ? (
+              <View className="border-border bg-surface gap-1 rounded-[18px] border px-4 py-3.5">
+                <Text className="text-foreground text-[14px]">
+                  Photographed on a generated model
+                </Text>
+                <Text className="text-muted text-[12px] leading-[18px]">
+                  {asset.renderError
+                    ? asset.renderError
+                    : `Your garment photo is rendered onto a model by the try-on service. Each new render costs ${CREDITS_PER_RENDER} credit.`}
+                </Text>
+              </View>
+            ) : (
+              <View className="gap-2.5">
+                <ToggleRow
+                  label="Enhance details"
+                  hint="Deeper contrast and crisper fabric texture"
+                  value={asset.enhanced}
+                  onChange={(value) => updateAsset(asset.id, { enhanced: value })}
+                />
+                <ToggleRow
+                  label="Shadow"
+                  hint="Grounds the garment with a soft cast shadow"
+                  value={asset.shadow}
+                  onChange={(value) => updateAsset(asset.id, { shadow: value })}
+                />
+              </View>
+            )}
 
-            <SecondaryButton
-              label={isRegenerating ? 'Regenerating…' : 'Regenerate'}
-              isDisabled={isRegenerating}
-              onPress={() => setIsRegenerating(true)}
-              icon={<RefreshCw color={palette.charcoal} size={15} />}
-            />
+            {isOnModel ? (
+              <SecondaryButton
+                label={isRendering ? 'Rendering…' : 'Render again'}
+                isDisabled={isRendering}
+                onPress={() => void rerenderAsset(asset.id)}
+                icon={<RefreshCw color={palette.charcoal} size={15} />}
+              />
+            ) : (
+              <SecondaryButton
+                label={isRegenerating ? 'Regenerating…' : 'Regenerate'}
+                isDisabled={isRegenerating}
+                onPress={() => setIsRegenerating(true)}
+                icon={<RefreshCw color={palette.charcoal} size={15} />}
+              />
+            )}
           </>
         )}
       </ScrollView>
@@ -311,7 +356,7 @@ export default function AssetPreviewScreen() {
       <FooterBar>
         <PrimaryButton
           label={asset.isApproved ? 'Approved' : 'Approve'}
-          isDisabled={asset.isApproved}
+          isDisabled={asset.isApproved || isBusy}
           onPress={() => {
             updateAsset(asset.id, { isApproved: true });
             router.back();
