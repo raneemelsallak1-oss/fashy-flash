@@ -45,7 +45,7 @@ const DEFAULT_STYLE: StyleSelection = {
 /** Values the simulated vision pass "reads" from the uploaded garment photos. */
 const AUTO_DETECTED: Partial<ProductData> = {
   category: 'Shirts & Blouses',
-  material: 'Linen blend',
+  material: 'Linen Blend',
   fit: 'Oversized',
   sizeRange: 'XS – XL',
   description:

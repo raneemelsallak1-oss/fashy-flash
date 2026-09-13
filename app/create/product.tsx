@@ -11,8 +11,14 @@ import { ProductField } from '@/components/product/ProductField';
 import { PrimaryButton } from '@/components/ui/ActionButton';
 import { FooterBar } from '@/components/ui/FooterBar';
 import { ScreenTitle } from '@/components/ui/ScreenTitle';
+import { PillToggle } from '@/components/ui/SelectionCard';
 import { Tappable } from '@/components/ui/Tappable';
-import { CATEGORY_SUGGESTIONS, FIT_SUGGESTIONS, SIZE_RANGE_SUGGESTIONS } from '@/lib/options';
+import {
+  CATEGORY_SUGGESTIONS,
+  FIT_SUGGESTIONS,
+  MATERIAL_OPTIONS,
+  SIZE_RANGE_SUGGESTIONS,
+} from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
 
@@ -26,6 +32,18 @@ export default function ProductScreen() {
   if (!draft) return <NoDraft />;
 
   const product = draft.product;
+  const selectedMaterials = product.material
+    .split(',')
+    .map((material) => material.trim())
+    .filter(Boolean);
+  const toggleMaterial = (material: string) => {
+    const isSelected = selectedMaterials.includes(material);
+    const nextMaterials = isSelected
+      ? selectedMaterials.filter((selected) => selected !== material)
+      : [...selectedMaterials, material];
+
+    updateProduct({ material: nextMaterials.join(', ') });
+  };
   const canContinue =
     product.name.trim().length > 0 &&
     product.category.trim().length > 0 &&
@@ -106,12 +124,29 @@ export default function ProductScreen() {
               hint="A short description of the piece — colour, cut and finish."
               multiline
             />
-            <ProductField
-              label="Material"
-              value={product.material}
-              onChangeText={(value) => updateProduct({ material: value })}
-              placeholder="Linen blend"
-            />
+            <View className="gap-2.5">
+              <Text className="text-charcoal-soft text-[12px] tracking-[1.4px] uppercase">
+                Material
+              </Text>
+              <Text className="text-muted text-[12px]">
+                Swipe to explore. Select one or more materials.
+              </Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerClassName="gap-2 pr-5"
+                keyboardShouldPersistTaps="handled"
+              >
+                {MATERIAL_OPTIONS.map((material) => (
+                  <PillToggle
+                    key={material}
+                    label={material}
+                    selected={selectedMaterials.includes(material)}
+                    onPress={() => toggleMaterial(material)}
+                  />
+                ))}
+              </ScrollView>
+            </View>
             <ProductField
               label="Fit"
               value={product.fit}

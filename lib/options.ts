@@ -127,6 +127,36 @@ export const CATEGORY_SUGGESTIONS = [
   'Accessories',
 ];
 
+export const MATERIAL_OPTIONS = [
+  'Cotton',
+  'Organic Cotton',
+  'Linen',
+  'Linen Blend',
+  'Denim',
+  'Wool',
+  'Merino Wool',
+  'Cashmere',
+  'Silk',
+  'Satin',
+  'Chiffon',
+  'Velvet',
+  'Leather',
+  'Faux Leather',
+  'Suede',
+  'Polyester',
+  'Nylon',
+  'Viscose',
+  'Rayon',
+  'Modal',
+  'Jersey',
+  'Knit',
+  'Fleece',
+  'Tweed',
+  'Lace',
+  'Mesh',
+  'Spandex/Elastane',
+] as const;
+
 export const FIT_SUGGESTIONS = ['Slim', 'Regular', 'Relaxed', 'Oversized', 'Tailored'];
 
 export const SIZE_RANGE_SUGGESTIONS = ['XS – L', 'XS – XL', 'S – XXL', 'One size', 'EU 34 – 44'];
