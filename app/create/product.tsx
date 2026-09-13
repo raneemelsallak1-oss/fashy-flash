@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
+import { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { router } from 'expo-router';
 import { Select, Text } from 'heroui-native';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
@@ -119,20 +120,31 @@ export default function ProductScreen() {
                 Material
               </Text>
               <Select
+                presentation="bottom-sheet"
                 value={selectedMaterial}
                 onValueChange={(option) => updateProduct({ material: option?.value ?? '' })}
               >
                 <Select.Trigger accessibilityLabel="Choose a material" className="min-h-14">
                   <Select.Value placeholder="Select a material" />
-                  <Select.TriggerIndicator />
+                  <Select.TriggerIndicator iconProps={{ size: 16, color: palette.charcoalSoft }} />
                 </Select.Trigger>
                 <Select.Portal>
                   <Select.Overlay />
-                  <Select.Content presentation="popover" width="trigger">
-                    <Select.ListLabel>Choose a material</Select.ListLabel>
-                    {MATERIAL_OPTIONS.map((material) => (
-                      <Select.Item key={material} value={material} label={material} />
-                    ))}
+                  <Select.Content
+                    presentation="bottom-sheet"
+                    snapPoints={['72%']}
+                    contentContainerClassName="flex-1 px-2"
+                  >
+                    <Select.ListLabel className="px-2 pb-2">Choose a material</Select.ListLabel>
+                    <BottomSheetScrollView
+                      style={{ flex: 1 }}
+                      contentContainerStyle={{ paddingBottom: 24 }}
+                      showsVerticalScrollIndicator
+                    >
+                      {MATERIAL_OPTIONS.map((material) => (
+                        <Select.Item key={material} value={material} label={material} />
+                      ))}
+                    </BottomSheetScrollView>
                   </Select.Content>
                 </Select.Portal>
               </Select>
