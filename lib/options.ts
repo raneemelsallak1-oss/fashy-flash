@@ -134,7 +134,6 @@ export const MATERIAL_OPTIONS = [
   'Linen Blend',
   'Denim',
   'Wool',
-  'Merino Wool',
   'Cashmere',
   'Silk',
   'Satin',
@@ -142,11 +141,9 @@ export const MATERIAL_OPTIONS = [
   'Velvet',
   'Leather',
   'Faux Leather',
-  'Suede',
   'Polyester',
   'Nylon',
   'Viscose',
-  'Rayon',
   'Modal',
   'Jersey',
   'Knit',
@@ -154,7 +151,7 @@ export const MATERIAL_OPTIONS = [
   'Tweed',
   'Lace',
   'Mesh',
-  'Spandex/Elastane',
+  'Spandex',
 ] as const;
 
 export const FIT_SUGGESTIONS = ['Slim', 'Regular', 'Relaxed', 'Oversized', 'Tailored'];

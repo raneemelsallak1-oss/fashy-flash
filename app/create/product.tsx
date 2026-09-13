@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
-import { Text } from 'heroui-native';
+import { Select, Text } from 'heroui-native';
 import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { FlowHeader } from '@/components/flow/FlowHeader';
@@ -11,7 +11,6 @@ import { ProductField } from '@/components/product/ProductField';
 import { PrimaryButton } from '@/components/ui/ActionButton';
 import { FooterBar } from '@/components/ui/FooterBar';
 import { ScreenTitle } from '@/components/ui/ScreenTitle';
-import { PillToggle } from '@/components/ui/SelectionCard';
 import { Tappable } from '@/components/ui/Tappable';
 import {
   CATEGORY_SUGGESTIONS,
@@ -32,18 +31,9 @@ export default function ProductScreen() {
   if (!draft) return <NoDraft />;
 
   const product = draft.product;
-  const selectedMaterials = product.material
-    .split(',')
-    .map((material) => material.trim())
-    .filter(Boolean);
-  const toggleMaterial = (material: string) => {
-    const isSelected = selectedMaterials.includes(material);
-    const nextMaterials = isSelected
-      ? selectedMaterials.filter((selected) => selected !== material)
-      : [...selectedMaterials, material];
-
-    updateProduct({ material: nextMaterials.join(', ') });
-  };
+  const selectedMaterial = product.material
+    ? { value: product.material, label: product.material }
+    : undefined;
   const canContinue =
     product.name.trim().length > 0 &&
     product.category.trim().length > 0 &&
@@ -128,24 +118,24 @@ export default function ProductScreen() {
               <Text className="text-charcoal-soft text-[12px] tracking-[1.4px] uppercase">
                 Material
               </Text>
-              <Text className="text-muted text-[12px]">
-                Swipe to explore. Select one or more materials.
-              </Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerClassName="gap-2 pr-5"
-                keyboardShouldPersistTaps="handled"
+              <Select
+                value={selectedMaterial}
+                onValueChange={(option) => updateProduct({ material: option?.value ?? '' })}
               >
-                {MATERIAL_OPTIONS.map((material) => (
-                  <PillToggle
-                    key={material}
-                    label={material}
-                    selected={selectedMaterials.includes(material)}
-                    onPress={() => toggleMaterial(material)}
-                  />
-                ))}
-              </ScrollView>
+                <Select.Trigger accessibilityLabel="Choose a material" className="min-h-14">
+                  <Select.Value placeholder="Select a material" />
+                  <Select.TriggerIndicator />
+                </Select.Trigger>
+                <Select.Portal>
+                  <Select.Overlay />
+                  <Select.Content presentation="popover" width="trigger">
+                    <Select.ListLabel>Choose a material</Select.ListLabel>
+                    {MATERIAL_OPTIONS.map((material) => (
+                      <Select.Item key={material} value={material} label={material} />
+                    ))}
+                  </Select.Content>
+                </Select.Portal>
+              </Select>
             </View>
             <ProductField
               label="Fit"
