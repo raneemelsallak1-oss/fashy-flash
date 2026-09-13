@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, View } from 'react-native';
 import { router } from 'expo-router';
 import { Text } from 'heroui-native';
-import { ChevronDown, ChevronUp } from 'lucide-react-native';
+import { Check, ChevronDown, ChevronUp } from 'lucide-react-native';
 
 import { FlowHeader } from '@/components/flow/FlowHeader';
 import { NoDraft } from '@/components/flow/NoDraft';
@@ -60,13 +60,44 @@ export default function ProductScreen() {
               onChangeText={(value) => updateProduct({ name: value })}
               placeholder="Oversized linen shirt"
             />
-            <ProductField
-              label="Category"
-              value={product.category}
-              onChangeText={(value) => updateProduct({ category: value })}
-              placeholder="Shirts & Blouses"
-              suggestions={CATEGORY_SUGGESTIONS}
-            />
+            <View className="gap-2.5">
+              <Text className="text-charcoal-soft text-[12px] tracking-[1.4px] uppercase">
+                Category
+              </Text>
+              <Text className="text-muted text-[12px]">Choose the closest match.</Text>
+              <View className="flex-row flex-wrap gap-2">
+                {CATEGORY_SUGGESTIONS.map((category) => {
+                  const selected = product.category === category;
+
+                  return (
+                    <Tappable
+                      key={category}
+                      accessibilityRole="radio"
+                      accessibilityLabel={category}
+                      accessibilityState={{ checked: selected }}
+                      onPress={() => updateProduct({ category })}
+                      scaleTo={0.96}
+                      className={`flex-row items-center gap-2 rounded-full border px-3.5 py-2.5 ${
+                        selected ? 'border-blush bg-blush-mist' : 'border-border bg-surface'
+                      }`}
+                    >
+                      {selected ? (
+                        <View className="bg-blush h-4 w-4 items-center justify-center rounded-full">
+                          <Check color={palette.white} size={11} strokeWidth={3} />
+                        </View>
+                      ) : null}
+                      <Text
+                        className={`text-[13px] ${
+                          selected ? 'text-foreground' : 'text-charcoal-soft'
+                        }`}
+                      >
+                        {category}
+                      </Text>
+                    </Tappable>
+                  );
+                })}
+              </View>
+            </View>
             <ProductField
               label="Details"
               value={product.description}
