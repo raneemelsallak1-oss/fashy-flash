@@ -1,5 +1,5 @@
 import { ScrollView, View } from 'react-native';
-import { Description, Input, Label, TextArea, TextField } from 'heroui-native';
+import { Description, Input, Label, Text, TextArea, TextField } from 'heroui-native';
 
 import { Tappable } from '@/components/ui/Tappable';
 import { cn } from '@/lib/utils';
@@ -55,6 +55,7 @@ export function ProductField({
       {suggestions && suggestions.length > 0 ? (
         <ScrollView
           horizontal
+          keyboardShouldPersistTaps="always"
           showsHorizontalScrollIndicator={false}
           contentContainerClassName="gap-2 pr-2"
         >
@@ -63,8 +64,10 @@ export function ProductField({
             return (
               <Tappable
                 key={suggestion}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
+                accessibilityRole="radio"
+                accessibilityLabel={`Select ${suggestion}`}
+                accessibilityState={{ checked: selected }}
+                hitSlop={4}
                 onPress={() => onChangeText(suggestion)}
                 scaleTo={0.94}
                 className={cn(
@@ -72,11 +75,11 @@ export function ProductField({
                   selected ? 'border-blush bg-blush-mist' : 'border-border bg-surface',
                 )}
               >
-                <Label
+                <Text
                   className={cn('text-[12px]', selected ? 'text-foreground' : 'text-charcoal-soft')}
                 >
                   {suggestion}
-                </Label>
+                </Text>
               </Tappable>
             );
           })}
