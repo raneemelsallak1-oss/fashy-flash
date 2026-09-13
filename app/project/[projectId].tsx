@@ -7,6 +7,7 @@ import { AssetImage } from '@/components/ui/AssetImage';
 import { PrimaryButton } from '@/components/ui/ActionButton';
 import { SectionLabel } from '@/components/ui/ScreenTitle';
 import { Tappable } from '@/components/ui/Tappable';
+import { isFinalAsset } from '@/lib/generation';
 import { goBackOrReplace } from '@/lib/navigation';
 import { EXPORT_FORMATS, MODEL_OPTIONS, STYLE_OPTIONS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
@@ -41,6 +42,7 @@ export default function ProjectDetailScreen() {
   const style =
     STYLE_OPTIONS.find((option) => option.id === project.style.visualStyle)?.label ?? '';
   const formats = EXPORT_FORMATS.filter((format) => project.exportFormats.includes(format.id));
+  const assets = project.assets.filter(isFinalAsset);
 
   return (
     <View className="bg-ivory flex-1">
@@ -80,9 +82,9 @@ export default function ProjectDetailScreen() {
         </View>
 
         <View className="gap-3">
-          <SectionLabel label="Generated content" hint={`${project.assets.length} visuals`} />
+          <SectionLabel label="Generated content" hint={`${assets.length} visuals`} />
           <View className="flex-row flex-wrap gap-2.5">
-            {project.assets.map((asset) => (
+            {assets.map((asset) => (
               <View key={asset.id} className="gap-1.5" style={{ width: tileWidth }}>
                 <View className="relative">
                   <AssetImage asset={asset} width={tileWidth} />

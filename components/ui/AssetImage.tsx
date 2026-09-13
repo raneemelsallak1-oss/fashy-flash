@@ -1,11 +1,11 @@
-import { View, type DimensionValue } from 'react-native';
+import { ActivityIndicator, View, type DimensionValue } from 'react-native';
 import { Image } from 'expo-image';
+import { Text } from 'heroui-native';
+import { AlertCircle } from 'lucide-react-native';
 
-import { FILL, GarmentFill, Layers, percent } from '@/components/ui/GarmentFill';
-import { LinearGradient } from '@/components/ui/primitives/LinearGradient';
-import { WornFigure } from '@/components/ui/WornFigure';
-import { imageForKind } from '@/lib/gallery';
-import { assetSource, backdropColors, hasAiImage, treatmentLayers } from '@/lib/generation';
+import { FILL } from '@/components/ui/GarmentFill';
+import { assetSource, hasAiImage } from '@/lib/generation';
+import { palette } from '@/lib/theme';
 import type { GeneratedAsset } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -18,20 +18,9 @@ type AssetImageProps = {
   className?: string;
 };
 
-/** Scene imagery bleeds past the frame so its blur has no visible soft edge. */
-const SCENE_FILL = {
-  position: 'absolute',
-  top: '-8%',
-  left: '-8%',
-  right: '-8%',
-  bottom: '-8%',
-} as const;
-
 /**
- * Renders one output. Once the backend delivers the AI image, that picture fills
- * the frame as it is. Until then — and if generation fails — a local preview
- * stands in: the user's own garment photo, cropped for its variation and staged
- * in the selected style and background.
+ * Shows only final photographs. Generated assets remain an explicit progress or
+ * error state until the backend returns a validated fashion photograph.
  */
 export function AssetImage({
   asset,
@@ -40,94 +29,41 @@ export function AssetImage({
   rounded = 'rounded-[18px]',
   className,
 }: AssetImageProps) {
-  const [backdropFrom, backdropTo] = backdropColors(asset);
-  const scene = asset.scene ? imageForKind(asset.scene) : null;
+  const frameStyle = { width, aspectRatio: aspect ?? asset.aspect };
 
-  // An imported photo is already finished: fill the frame with the file itself
-  // and composite nothing over it. A finished AI image is treated the same way —
-  // it is a real photograph, not something to paint over.
   if (asset.origin === 'imported' || hasAiImage(asset)) {
     const source =
       hasAiImage(asset) && asset.renderUrl ? { uri: asset.renderUrl } : assetSource(asset);
 
     return (
-      <View
-        className={cn('bg-sand-soft overflow-hidden', rounded, className)}
-        style={{ width, aspectRatio: aspect ?? asset.aspect }}
-      >
+      <View className={cn('bg-sand-soft overflow-hidden', rounded, className)} style={frameStyle}>
         <Image source={source} style={FILL} contentFit="cover" transition={220} />
       </View>
     );
   }
 
+  const failed = asset.renderStatus === 'failed';
+
   return (
     <View
-      className={cn('overflow-hidden', rounded, className)}
-      style={{
-        width,
-        aspectRatio: aspect ?? asset.aspect,
-        backgroundColor: backdropFrom,
-        isolation: 'isolate',
-      }}
+      className={cn(
+        'border-border bg-ivory-deep items-center justify-center gap-2 border px-4',
+        rounded,
+        className,
+      )}
+      style={frameStyle}
     >
-      {scene ? (
-        <>
-          <Image
-            source={scene}
-            style={SCENE_FILL}
-            contentFit="cover"
-            blurRadius={22}
-            transition={220}
-          />
-          <View
-            pointerEvents="none"
-            style={{ ...FILL, backgroundColor: backdropTo, opacity: 0.4 }}
-          />
-        </>
+      {failed ? (
+        <AlertCircle color={palette.blush} size={22} />
       ) : (
-        <LinearGradient
-          colors={[backdropFrom, backdropTo]}
-          start={{ x: 0.15, y: 0 }}
-          end={{ x: 0.85, y: 1 }}
-          style={FILL}
-        />
+        <ActivityIndicator color={palette.blush} />
       )}
-
-      {asset.worn ? (
-        <View style={{ flex: 1, padding: percent(asset.inset) }}>
-          <WornFigure asset={asset} />
-        </View>
-      ) : (
-        <>
-          {asset.staged && asset.shadow ? (
-            <View
-              pointerEvents="none"
-              className="bg-charcoal/15"
-              style={{
-                position: 'absolute',
-                left: '24%',
-                right: '24%',
-                bottom: percent(asset.inset * 0.55),
-                height: '3%',
-                borderRadius: 999,
-              }}
-            />
-          ) : null}
-
-          <View style={{ flex: 1, padding: percent(asset.inset) }}>
-            <GarmentFill asset={asset} style={{ borderRadius: asset.inset > 0 ? 10 : 0 }} />
-          </View>
-
-          {!asset.staged && asset.shadow ? (
-            <View
-              pointerEvents="none"
-              className="bg-charcoal/10 absolute right-0 bottom-0 left-0 h-1/5"
-            />
-          ) : null}
-        </>
-      )}
-
-      <Layers layers={treatmentLayers(asset)} />
+      <Text className="text-foreground text-center text-[12px]">
+        {failed ? 'Image not generated' : 'Generating photograph…'}
+      </Text>
+      <Text className="text-muted text-center text-[10px] leading-[14px]">
+        {failed ? 'Open to see the error and retry.' : 'Only the finished photograph will appear.'}
+      </Text>
     </View>
   );
 }

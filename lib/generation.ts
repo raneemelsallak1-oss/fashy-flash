@@ -24,7 +24,7 @@ export const MODEL_LABEL: Record<ModelChoice, string> = {
   female: 'Female model',
   male: 'Male model',
   diverse: 'Diverse models',
-  none: 'Product only',
+  none: 'Female model',
 };
 
 export const STYLE_LABEL: Record<VisualStyle, string> = {
@@ -98,31 +98,29 @@ type VariationConfig = {
   inset: number;
   aspect: number;
   staged: boolean;
-  /** Presents the garment on the selected model instead of on its own. */
+  /** The generated photograph presents the garment on a real human model. */
   worn: boolean;
 };
 
 /**
- * The outputs every configuration produces: full body, front, back, detail,
- * close-up, e-commerce and social. Model-worn frames only appear when a model
- * type is selected — "Product only" keeps the garment on its own.
+ * Every output is generated as a photorealistic fashion photograph of a real
+ * human wearing the uploaded garment. Detail and close-up outputs may use an
+ * intentional tighter crop; all other frames keep the model visible head to feet.
  */
-function coreVariations(style: StyleSelection): VariationConfig[] {
-  const productOnly = style.model === 'none';
-
+function coreVariations(): VariationConfig[] {
   return [
     {
       id: 'full-body',
       variation: 'full-body',
-      title: productOnly ? 'Full garment shot' : 'Full-body model image',
+      title: 'Full-body model image',
       category: 'social',
       slot: 'front',
       zoom: 1.02,
       focusY: 0.44,
-      inset: productOnly ? 0.13 : 0.05,
+      inset: 0.05,
       aspect: 2 / 3,
       staged: true,
-      worn: !productOnly,
+      worn: true,
     },
     {
       id: 'front',
@@ -135,7 +133,7 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0,
       aspect: 3 / 4,
       staged: false,
-      worn: false,
+      worn: true,
     },
     {
       id: 'back',
@@ -148,7 +146,7 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0,
       aspect: 3 / 4,
       staged: false,
-      worn: false,
+      worn: true,
     },
     {
       id: 'detail',
@@ -161,7 +159,7 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0,
       aspect: 1,
       staged: false,
-      worn: false,
+      worn: true,
     },
     {
       id: 'close-up',
@@ -174,7 +172,7 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0.13,
       aspect: 1,
       staged: true,
-      worn: false,
+      worn: true,
     },
     {
       id: 'ecommerce',
@@ -187,7 +185,7 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       inset: 0.12,
       aspect: 1,
       staged: true,
-      worn: false,
+      worn: true,
     },
     {
       id: 'social',
@@ -197,10 +195,10 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
       slot: 'front',
       zoom: 1.06,
       focusY: 0.42,
-      inset: productOnly ? 0.1 : 0.05,
+      inset: 0.05,
       aspect: 4 / 5,
       staged: true,
-      worn: !productOnly,
+      worn: true,
     },
   ];
 }
@@ -209,9 +207,7 @@ function coreVariations(style: StyleSelection): VariationConfig[] {
  * Extra crop a chosen content purpose adds on top of the core plan. Purposes
  * already covered by a core output return null.
  */
-function purposeVariation(purpose: ContentPurpose, style: StyleSelection): VariationConfig | null {
-  const worn = style.model !== 'none';
-
+function purposeVariation(purpose: ContentPurpose): VariationConfig | null {
   switch (purpose) {
     case 'ecommerce':
       return null;
@@ -224,10 +220,10 @@ function purposeVariation(purpose: ContentPurpose, style: StyleSelection): Varia
         slot: 'front',
         zoom: 1.06,
         focusY: 0.42,
-        inset: worn ? 0.05 : 0.07,
+        inset: 0.05,
         aspect: 1,
         staged: true,
-        worn,
+        worn: true,
       };
     case 'social':
       return {
@@ -238,10 +234,10 @@ function purposeVariation(purpose: ContentPurpose, style: StyleSelection): Varia
         slot: 'front',
         zoom: 1.12,
         focusY: 0.4,
-        inset: worn ? 0.05 : 0.06,
+        inset: 0.05,
         aspect: 9 / 16,
         staged: true,
-        worn,
+        worn: true,
       };
     case 'catalog':
       return {
@@ -255,7 +251,7 @@ function purposeVariation(purpose: ContentPurpose, style: StyleSelection): Varia
         inset: 0.09,
         aspect: 4 / 5,
         staged: true,
-        worn: false,
+        worn: true,
       };
     case 'lookbook':
       return {
@@ -266,10 +262,10 @@ function purposeVariation(purpose: ContentPurpose, style: StyleSelection): Varia
         slot: 'back',
         zoom: 1.04,
         focusY: 0.46,
-        inset: worn ? 0.06 : 0.1,
+        inset: 0.06,
         aspect: 4 / 5,
         staged: true,
-        worn,
+        worn: true,
       };
     case 'showroom':
       return {
@@ -283,7 +279,7 @@ function purposeVariation(purpose: ContentPurpose, style: StyleSelection): Varia
         inset: 0.1,
         aspect: 4 / 5,
         staged: true,
-        worn: false,
+        worn: true,
       };
     default:
       return null;
@@ -301,12 +297,12 @@ const PURPOSE_ORDER: ContentPurpose[] = [
 
 /** Every output the current configuration will generate, in order. */
 export function variationPlan(style: StyleSelection): VariationConfig[] {
-  const plan = coreVariations(style);
+  const plan = coreVariations();
   const ids = new Set(plan.map((config) => config.id));
   const chosen = new Set(style.purposes);
 
   PURPOSE_ORDER.filter((purpose) => chosen.has(purpose)).forEach((purpose) => {
-    const extra = purposeVariation(purpose, style);
+    const extra = purposeVariation(purpose);
     if (!extra || ids.has(extra.id)) return;
     plan.push(extra);
     ids.add(extra.id);
@@ -359,7 +355,7 @@ export function describeLook(asset: GeneratedAsset): string {
 /** Where an output's imagery came from, e.g. "Front upload · reused for Back view". */
 export function describeSource(asset: GeneratedAsset): string {
   if (asset.origin === 'imported') return 'Your own photo, kept exactly as imported';
-  if (!asset.sourceUri) return 'No upload available — placeholder imagery';
+  if (!asset.sourceUri) return 'No garment upload available for generation';
 
   const base = `${SLOT_LABEL[asset.sourceSlot]} upload`;
   if (hasAiImage(asset)) return `${base}, photographed by the image service`;
@@ -370,8 +366,8 @@ export function describeSource(asset: GeneratedAsset): string {
 /**
  * Plans the output set for a project: one entry per framing the configuration
  * asks for, each pointing at the garment photo it is generated from. Every
- * entry starts as a local preview and is replaced by the real AI image once the
- * backend delivers it.
+ * entry starts in a pending state and becomes visible only after the backend
+ * delivers a validated human fashion photograph.
  */
 export function buildAssets(project: Project): GeneratedAsset[] {
   const { photos, product, style } = project;
@@ -390,7 +386,7 @@ export function buildAssets(project: Project): GeneratedAsset[] {
       sourceSlot: photo?.slot ?? config.slot,
       requestedSlot: config.slot,
       isDerived: photo ? photo.slot !== config.slot : false,
-      model: style.model,
+      model: style.model === 'none' ? 'female' : style.model,
       visualStyle: style.visualStyle,
       background: style.background,
       scene: sceneFor(config, style),
@@ -481,12 +477,18 @@ export function needsAiImage(asset: GeneratedAsset): boolean {
 }
 
 /**
- * The image an output finally shows: the generated picture when the service
- * delivered one, otherwise the local preview built from the garment photo.
+ * A generated output is exportable only after the image service has delivered
+ * and validated a real fashion photograph. Imported photos are already final.
  */
+export function isFinalAsset(asset: GeneratedAsset): boolean {
+  return asset.origin === 'imported' || hasAiImage(asset);
+}
+
+/** The final image for a successful generated output or imported photograph. */
 export function finalSource(asset: GeneratedAsset): ImageSourcePropType {
   if (hasAiImage(asset) && asset.renderUrl) return { uri: asset.renderUrl };
-  return assetSource(asset);
+  if (asset.origin === 'imported' && asset.sourceUri) return { uri: asset.sourceUri };
+  throw new Error('This asset does not have a validated final image yet.');
 }
 
 /** One line naming how this output was produced. */
@@ -497,9 +499,9 @@ export function describeRender(asset: GeneratedAsset): string {
     case 'pending':
       return 'Generating…';
     case 'failed':
-      return 'Preview — the AI image did not arrive';
+      return 'Generation failed — no image was added';
     default:
-      return 'Preview built from your garment photo';
+      return asset.origin === 'imported' ? 'Your imported photograph' : 'Waiting to generate';
   }
 }
 

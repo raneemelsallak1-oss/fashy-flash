@@ -4,6 +4,7 @@ import { ChevronRight } from 'lucide-react-native';
 
 import { AssetImage } from '@/components/ui/AssetImage';
 import { Tappable } from '@/components/ui/Tappable';
+import { isFinalAsset } from '@/lib/generation';
 import { palette } from '@/lib/theme';
 import type { Project } from '@/lib/types';
 
@@ -20,8 +21,9 @@ type ProjectCardProps = {
 };
 
 export function ProjectCard({ project, onPress }: ProjectCardProps) {
-  const cover = project.assets[0];
-  const approved = project.assets.filter((asset) => asset.isApproved).length;
+  const finalAssets = project.assets.filter(isFinalAsset);
+  const cover = finalAssets[0];
+  const approved = finalAssets.filter((asset) => asset.isApproved).length;
 
   return (
     <Tappable
@@ -40,7 +42,7 @@ export function ProjectCard({ project, onPress }: ProjectCardProps) {
           {project.name}
         </Text>
         <Text className="text-muted text-[12px]">
-          {project.assets.length} visuals · {approved} approved · {formatDate(project.createdAt)}
+          {finalAssets.length} visuals · {approved} approved · {formatDate(project.createdAt)}
         </Text>
       </View>
 

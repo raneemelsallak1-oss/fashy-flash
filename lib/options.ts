@@ -26,10 +26,13 @@ export const PHOTO_SLOTS: { id: PhotoSlot; label: string }[] = [
 ];
 
 export const MODEL_OPTIONS: { id: ModelChoice; label: string; hint: string }[] = [
-  { id: 'female', label: 'Female', hint: 'Womenswear fit and posing' },
-  { id: 'male', label: 'Male', hint: 'Menswear fit and posing' },
-  { id: 'diverse', label: 'Diverse Models', hint: 'Mixed ages, bodies and skin tones' },
-  { id: 'none', label: 'No Model / Product Only', hint: 'Ghost mannequin and flat shots' },
+  { id: 'female', label: 'Female', hint: 'Photorealistic womenswear model' },
+  { id: 'male', label: 'Male', hint: 'Photorealistic menswear model' },
+  {
+    id: 'diverse',
+    label: 'Diverse Models',
+    hint: 'Real people across ages, bodies and skin tones',
+  },
 ];
 
 export const STYLE_OPTIONS: { id: VisualStyle; label: string; hint: string }[] = [

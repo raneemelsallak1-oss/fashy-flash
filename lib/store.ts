@@ -6,6 +6,7 @@ import {
   buildAssets,
   buildImportedAsset,
   EMPTY_TREATMENT,
+  isFinalAsset,
   needsAiImage,
   nextTake,
 } from '@/lib/generation';
@@ -536,7 +537,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   toggleSelection: (assetId) => {
-    const selection = get().selection;
+    const state = get();
+    const asset = state.draft?.assets.find((item) => item.id === assetId);
+    if (!asset || (asset.origin === 'generated' && asset.renderStatus !== 'ready')) return;
+
+    const selection = state.selection;
     set({
       selection: selection.includes(assetId)
         ? selection.filter((id) => id !== assetId)
@@ -616,9 +621,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   approveSelected: () => {
     const { draft, selection } = get();
     if (!draft) return;
+    const eligible = draft.assets.filter(
+      (asset) => asset.origin === 'imported' || asset.renderStatus === 'ready',
+    );
+    const eligibleIds = new Set(eligible.map((asset) => asset.id));
     const approveAll = selection.length === 0;
     const assets = draft.assets.map((asset) =>
-      approveAll || selection.includes(asset.id) ? { ...asset, isApproved: true } : asset,
+      eligibleIds.has(asset.id) && (approveAll || selection.includes(asset.id))
+        ? { ...asset, isApproved: true }
+        : asset,
     );
     set({
       draft: { ...draft, assets },
@@ -666,10 +677,14 @@ export const useAppStore = create<AppState>((set, get) => ({
   /** Stores the finished draft in the in-memory project list (newest first). */
   commitProject: () => {
     const { draft, projects } = get();
-    if (!draft || draft.assets.length === 0) return;
+    if (
+      !draft?.assets.some((asset) => asset.origin === 'imported' || asset.renderStatus === 'ready')
+    )
+      return;
 
     const project: Project = {
       ...draft,
+      assets: draft.assets.filter(isFinalAsset),
       name: draft.product.name.trim() || 'Untitled project',
     };
     const existing = projects.findIndex((item) => item.id === project.id);

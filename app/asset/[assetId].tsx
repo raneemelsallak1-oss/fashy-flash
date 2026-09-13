@@ -325,7 +325,11 @@ export default function AssetPreviewScreen() {
       <FooterBar>
         <PrimaryButton
           label={asset.isApproved ? 'Approved' : 'Approve'}
-          isDisabled={asset.isApproved || isGenerating}
+          isDisabled={
+            asset.isApproved ||
+            isGenerating ||
+            (asset.origin === 'generated' && asset.renderStatus !== 'ready')
+          }
           onPress={() => {
             updateAsset(asset.id, { isApproved: true });
             router.back();

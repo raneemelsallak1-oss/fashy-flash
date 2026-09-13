@@ -21,7 +21,7 @@ import {
   groupCatalogImages,
 } from '@/lib/catalog';
 import { downloadAssetFiles, downloadCatalogPdf } from '@/lib/download';
-import { finalSource } from '@/lib/generation';
+import { finalSource, isFinalAsset } from '@/lib/generation';
 import { EXPORT_FORMATS } from '@/lib/options';
 import { useAppStore } from '@/lib/store';
 import { palette } from '@/lib/theme';
@@ -45,7 +45,7 @@ export default function ExportScreen() {
 
   if (!draft) return <NoDraft />;
 
-  const assets = draft.assets;
+  const assets = draft.assets.filter(isFinalAsset);
   const formats = draft.exportFormats;
   const chosen = assets.filter((asset) => selection.includes(asset.id));
   const imageFormats = formats.filter((format) => format !== 'catalog-pdf');

@@ -47,9 +47,14 @@ export default function ReviewScreen() {
   const visible = filter === 'all' ? assets : assets.filter((asset) => asset.category === filter);
   const tileWidth = (Math.min(width, 560) - 40 - 10) / 2;
   const importedCount = assets.filter((asset) => asset.origin === 'imported').length;
-  const generatedCount = assets.length - importedCount;
   const isRevising = revisionStatus === 'working';
   const failedRenders = assets.filter((asset) => asset.renderStatus === 'failed').length;
+  const finalAssets = assets.filter(
+    (asset) => asset.origin === 'imported' || asset.renderStatus === 'ready',
+  );
+  const finalIds = new Set(finalAssets.map((asset) => asset.id));
+  const selectedFinalCount = selection.filter((id) => finalIds.has(id)).length;
+  const finalCount = finalAssets.length;
   const isRendering = renderProgress.active;
 
   const approveAndContinue = () => {
@@ -74,7 +79,7 @@ export default function ReviewScreen() {
           <ScreenTitle
             eyebrow="Step five"
             title="Your generated content"
-            support={`${generatedCount} visuals built from your photos and settings. Tap any image to preview and refine it.`}
+            support={`${finalCount} finished fashion photograph${finalCount === 1 ? '' : 's'}. Pending and failed generations remain status cards until a validated image is ready.`}
           />
 
           <ConfigChips project={draft} />
@@ -92,7 +97,7 @@ export default function ReviewScreen() {
                 <Text className="text-muted text-[11px] leading-[16px]">
                   {isRendering
                     ? 'Each image appears here as soon as it is ready.'
-                    : 'A preview is standing in. Try generating those again.'}
+                    : 'No placeholder was added. Open the failed item or retry generation.'}
                 </Text>
               </View>
 
@@ -159,14 +164,16 @@ export default function ReviewScreen() {
 
       <FooterBar>
         <Text className="text-muted text-center text-[12px]">
-          {selection.length > 0
-            ? `${selection.length} selected for export`
-            : 'Nothing selected — all visuals will be approved'}
+          {selectedFinalCount > 0
+            ? `${selectedFinalCount} selected for export`
+            : finalCount > 0
+              ? 'Nothing selected — all finished photographs will be approved'
+              : 'Generate at least one photograph to continue'}
         </Text>
         <PrimaryButton
           label="Approve & Continue"
           onPress={approveAndContinue}
-          isDisabled={isRevising}
+          isDisabled={isRevising || finalCount === 0}
           icon={<ArrowRight color={palette.ivory} size={16} />}
         />
       </FooterBar>

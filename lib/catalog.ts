@@ -1,6 +1,6 @@
 import type { ImageSourcePropType } from 'react-native';
 
-import { finalSource, hasAiImage, treatmentLayers } from '@/lib/generation';
+import { finalSource, isFinalAsset } from '@/lib/generation';
 import type { CatalogSelection, GeneratedAsset, ImageLayer, PhotoSlot, Project } from '@/lib/types';
 
 /** The three garment views a digital catalog is laid out around. */
@@ -56,7 +56,7 @@ function viewForAsset(asset: GeneratedAsset): CatalogView {
 
 /** Every image available to the catalog: generated visuals first, then uploads. */
 export function catalogImages(project: Project): CatalogImage[] {
-  const generated: CatalogImage[] = project.assets.map((asset) => ({
+  const generated: CatalogImage[] = project.assets.filter(isFinalAsset).map((asset) => ({
     id: `asset:${asset.id}`,
     view: viewForAsset(asset),
     label: asset.title,
@@ -64,8 +64,7 @@ export function catalogImages(project: Project): CatalogImage[] {
     origin: asset.origin === 'imported' ? 'photo' : 'generated',
     source: finalSource(asset),
     aspect: asset.aspect,
-    // A finished AI image is printed as it is; nothing is painted over it.
-    overlays: hasAiImage(asset) ? [] : treatmentLayers(asset),
+    overlays: [],
   }));
 
   const uploads: CatalogImage[] = project.photos.map((photo, index) => ({
