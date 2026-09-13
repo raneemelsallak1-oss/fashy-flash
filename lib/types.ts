@@ -18,7 +18,7 @@ export type ProductData = {
   sizeRange: string;
   brand: string;
   sku: string;
-  /** Short product description the generation prompt is written from. */
+  /** Product description and user direction that must actively guide image generation. */
   description: string;
 };
 

@@ -111,8 +111,8 @@ export default function ProductScreen() {
               label="Details"
               value={product.description}
               onChangeText={(value) => updateProduct({ description: value })}
-              placeholder="Oversized ivory linen shirt, relaxed drop shoulder, mother-of-pearl buttons, breathable weave."
-              hint="A short description of the piece — colour, cut and finish."
+              placeholder="Describe the product and add generation instructions, e.g. realistic human model with natural skin and realistic facial features."
+              hint="Actively guides the generated image, including the garment, model, pose, styling and realism."
               multiline
             />
             <View className="gap-2.5">

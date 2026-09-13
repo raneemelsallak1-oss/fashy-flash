@@ -31,6 +31,7 @@ export async function generateImage(request: ImageRequest): Promise<string> {
       product: {
         name: product.name,
         category: product.category,
+        details: product.description,
         description: product.description,
         material: product.material,
         fit: product.fit,
